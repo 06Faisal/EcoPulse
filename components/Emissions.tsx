@@ -56,11 +56,13 @@ const renderPieLabel = ({ cx, cy, innerRadius, outerRadius, percent, startAngle,
 
   let pathD = '';
   const safeMidAngle = Number.isFinite(midAngle) ? midAngle : (startAngle + endAngle) / 2;
-  const needsFlip = safeMidAngle > 90 && safeMidAngle < 270;
+  const normalizedMid = ((safeMidAngle % 360) + 360) % 360;
+  const needsFlip = normalizedMid >= 90 && normalizedMid <= 270;
   if (percent > 0.99) {
     const start = { x: cx + radius, y: cy };
     const mid = { x: cx - radius, y: cy };
-    pathD = `M ${start.x} ${start.y} A ${radius} ${radius} 0 1 1 ${mid.x} ${mid.y} A ${radius} ${radius} 0 1 1 ${start.x} ${start.y}`;
+    const sweepFlag = needsFlip ? 0 : 1;
+    pathD = `M ${start.x} ${start.y} A ${radius} ${radius} 0 1 ${sweepFlag} ${mid.x} ${mid.y} A ${radius} ${radius} 0 1 ${sweepFlag} ${start.x} ${start.y}`;
   } else {
     let start = polarToCartesian(startAngle);
     let end = polarToCartesian(endAngle);

@@ -1,5 +1,9 @@
 /* EcoPulse AI - Enhanced Styles */
 
+:root {
+  --accent-glow: 24, 90, 140;
+}
+
 * {
   margin: 0;
   padding: 0;
@@ -21,12 +25,55 @@ body {
   border: 1px solid rgba(148, 163, 184, 0.18);
   box-shadow: 0 12px 28px -24px rgba(15, 23, 42, 0.35);
   transition: all 0.3s ease;
+  position: relative;
+  --glow-x: 50%;
+  --glow-y: 50%;
+  --glow-intensity: 0;
 }
 
 .dark .glass {
   background: rgba(15, 23, 42, 0.72);
   border: 1px solid rgba(148, 163, 184, 0.14);
   box-shadow: 0 18px 34px -26px rgba(0, 0, 0, 0.6);
+}
+
+.glass::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  padding: 2px;
+  border-radius: inherit;
+  background: radial-gradient(
+    260px circle at var(--glow-x) var(--glow-y),
+    rgba(var(--accent-glow), calc(var(--glow-intensity) * 0.75)) 0%,
+    rgba(var(--accent-glow), calc(var(--glow-intensity) * 0.35)) 35%,
+    rgba(var(--accent-glow), calc(var(--glow-intensity) * 0.18)) 55%,
+    transparent 72%
+  );
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  mask-composite: exclude;
+  pointer-events: none;
+  opacity: 1;
+  transition: opacity 180ms ease;
+  z-index: 1;
+}
+
+.reveal-on-scroll {
+  opacity: 0;
+  transform: translateY(18px) scale(0.98);
+  transition: opacity 520ms ease, transform 520ms ease;
+  will-change: opacity, transform;
+}
+
+.reveal-on-scroll.is-visible {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+}
+
+.glass:hover {
+  --glow-intensity: 1;
 }
 
 /* Scrollbar styling */
@@ -248,6 +295,7 @@ html {
 
 html.dark {
   background-color: #020617;
+  --accent-glow: 56, 189, 248;
 }
 
 /* Better focus rings for dark mode */
@@ -318,5 +366,11 @@ select {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
+  }
+
+  .reveal-on-scroll,
+  .reveal-on-scroll.is-visible {
+    opacity: 1 !important;
+    transform: none !important;
   }
 }

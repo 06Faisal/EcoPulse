@@ -92,6 +92,118 @@ function App() {
     }
   }, [userProfile.darkMode]);
 
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            entry.target.classList.add('is-visible');
+            observer.unobserve(entry.target);
+          }
+        });
+      },
+      { threshold: 0.2, rootMargin: '0px 0px -12% 0px' }
+    );
+
+    const observed = new Set<Element>();
+
+    const scan = () => {
+      document.querySelectorAll<HTMLElement>('.glass').forEach((card) => {
+        if (!card.classList.contains('reveal-on-scroll')) {
+          card.classList.add('reveal-on-scroll');
+        }
+        if (!observed.has(card)) {
+          observed.add(card);
+          observer.observe(card);
+        }
+      });
+    };
+
+    scan();
+
+    const mutationObserver = new MutationObserver(scan);
+    mutationObserver.observe(document.body, { childList: true, subtree: true });
+
+    return () => {
+      mutationObserver.disconnect();
+      observed.forEach((card) => observer.unobserve(card));
+      observer.disconnect();
+      observed.clear();
+    };
+  }, []);
+
+  // Soft glow tracking for cards
+  useEffect(() => {
+    const handlers = new Map<
+      HTMLElement,
+      { move: (e: PointerEvent) => void; leave: () => void; up: () => void; down: (e: PointerEvent) => void }
+    >();
+    const timeouts = new Map<HTMLElement, number>();
+
+    const attach = (card: HTMLElement) => {
+      if (handlers.has(card)) return;
+
+      const handleMove = (event: PointerEvent) => {
+        const rect = card.getBoundingClientRect();
+        const x = ((event.clientX - rect.left) / rect.width) * 100;
+        const y = ((event.clientY - rect.top) / rect.height) * 100;
+        card.style.setProperty('--glow-x', `${x}%`);
+        card.style.setProperty('--glow-y', `${y}%`);
+        card.style.setProperty('--glow-intensity', '1');
+      };
+
+      const clearGlow = () => {
+        card.style.setProperty('--glow-intensity', '0');
+      };
+
+      const handleUp = () => clearGlow();
+      const handleLeave = () => clearGlow();
+
+      const handleDown = (event: PointerEvent) => {
+        handleMove(event);
+        if (timeouts.has(card)) {
+          window.clearTimeout(timeouts.get(card));
+        }
+        const timeoutId = window.setTimeout(() => {
+          clearGlow();
+          timeouts.delete(card);
+        }, 900);
+        timeouts.set(card, timeoutId);
+      };
+
+      card.addEventListener('pointermove', handleMove);
+      card.addEventListener('pointerdown', handleDown);
+      card.addEventListener('pointerleave', handleLeave);
+      card.addEventListener('pointerup', handleUp);
+      card.addEventListener('pointercancel', handleUp);
+
+      handlers.set(card, { move: handleMove, leave: handleLeave, up: handleUp, down: handleDown });
+    };
+
+    const scan = () => {
+      document.querySelectorAll<HTMLElement>('.glass').forEach(attach);
+    };
+
+    scan();
+
+    const observer = new MutationObserver(scan);
+    observer.observe(document.body, { childList: true, subtree: true });
+
+    return () => {
+      observer.disconnect();
+      handlers.forEach((handler, card) => {
+        card.removeEventListener('pointermove', handler.move);
+        card.removeEventListener('pointerdown', handler.down);
+        card.removeEventListener('pointerleave', handler.leave);
+        card.removeEventListener('pointerup', handler.up);
+        card.removeEventListener('pointercancel', handler.up);
+      });
+      timeouts.forEach((timeoutId) => window.clearTimeout(timeoutId));
+      timeouts.clear();
+      handlers.clear();
+    };
+  }, []);
+
   const handleLogin = (payload: { id: string; username: string }) => {
     setCurrentUser(payload);
   };
