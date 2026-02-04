@@ -1,0 +1,8 @@
+{
+  "name": "EcoPulse AI",
+  "description": "A professional-grade carbon footprint tracking application using Gemini AI for predictive analytics, smart recommendations, and image-based bill processing.",
+  "requestFramePermissions": [
+    "camera",
+    "geolocation"
+  ]
+}
