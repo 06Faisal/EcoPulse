@@ -26,7 +26,7 @@ const Navigation: React.FC<NavigationProps> = ({ activeTab, onTabChange }) => {
           <div className={`w-12 h-10 rounded-2xl flex items-center justify-center transition-all ${activeTab === tab.id ? 'bg-emerald-500/10 text-xl' : 'text-lg'}`}>
             <i className={`fa-solid ${tab.icon}`}></i>
           </div>
-          <span className="text-[9px] font-black uppercase tracking-[0.15em]">{tab.label}</span>
+          <span className="text-[11px] font-black uppercase tracking-[0.12em]">{tab.label}</span>
         </button>
       ))}
     </nav>

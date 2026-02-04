@@ -9,7 +9,6 @@ import Navigation from './components/Navigation';
 import { cloud } from './services/cloudService';
 import { getAIAnalytics } from './services/geminiService';
 import { Trip, UtilityBill, UserProfile, AIInsight, CustomVehicle, VehicleType, LeaderboardEntry } from './services/types';
-import './App.css';
 
 function App() {
   const [currentUser, setCurrentUser] = useState<{ id: string; username: string } | null>(null);
@@ -31,7 +30,6 @@ function App() {
     customVehicles: [],
     availableVehicles: ['Car', 'Bike', 'Bus', 'Train', 'Walking']
   });
-  const [coords, setCoords] = useState<{lat: number, lng: number} | undefined>(undefined);
   const [availableVehicles, setAvailableVehicles] = useState<VehicleType[]>([]);
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
 
@@ -84,14 +82,6 @@ function App() {
     };
     load();
   }, [currentUser]);
-
-  // Get location
-  useEffect(() => {
-    navigator.geolocation.getCurrentPosition(
-      (pos) => setCoords({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
-      () => console.log("Location access denied")
-    );
-  }, []);
 
   // Dark mode
   useEffect(() => {
@@ -172,12 +162,7 @@ function App() {
     setActiveTab('ai');
     
     try {
-      const result = await getAIAnalytics(
-        trips, 
-        bills, 
-        coords,
-        userProfile.customVehicles
-      );
+      const result = await getAIAnalytics(trips, bills);
       setInsight(result);
       
       // Update streak
@@ -271,12 +256,12 @@ function App() {
         <header className="sticky top-0 z-30 bg-white/80 dark:bg-slate-900/80 backdrop-blur-2xl border-b border-slate-100 dark:border-slate-800 px-6 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-emerald-500 rounded-2xl flex items-center justify-center text-white shadow-lg">
+              <div className="w-10 h-10 bg-emerald-500 rounded-2xl flex items-center justify-center text-white shadow-md">
                 <i className="fa-solid fa-leaf text-lg"></i>
               </div>
               <div>
                 <h1 className="text-lg font-black text-slate-800 dark:text-white tracking-tight">EcoPulse AI</h1>
-                <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wider"> Sustainability</p>
+                <p className="text-[11px] font-bold text-slate-400 uppercase tracking-[0.16em]">Sustainability</p>
               </div>
             </div>
             <div className="flex items-center gap-2">

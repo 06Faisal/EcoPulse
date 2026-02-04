@@ -35,7 +35,7 @@ const getColor = (key: string, index: number) => {
 const CustomTooltip = ({ active, payload }: any) => {
   if (active && payload && payload.length) {
     return (
-      <div className="bg-slate-900 p-3 rounded-2xl shadow-xl border border-white/10">
+      <div className="bg-slate-900 p-3 rounded-2xl shadow-lg border border-white/10">
         <p className="text-[10px] font-black text-slate-400 uppercase mb-1">{payload[0].name}</p>
         <p className="text-sm font-bold text-white">{Number(payload[0].value).toFixed(2)} kg CO2</p>
       </div>
@@ -44,24 +44,45 @@ const CustomTooltip = ({ active, payload }: any) => {
   return null;
 };
 
-const renderPieLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, percent }: any) => {
+const renderPieLabel = ({ cx, cy, innerRadius, outerRadius, percent, startAngle, endAngle, index, midAngle }: any) => {
   if (percent < 0.08) return null;
   const RADIAN = Math.PI / 180;
-  const radius = innerRadius + (outerRadius - innerRadius) * 0.35;
-  const x = cx + radius * Math.cos(-midAngle * RADIAN);
-  const y = cy + radius * Math.sin(-midAngle * RADIAN);
+  const radius = innerRadius + (outerRadius - innerRadius) * 0.6;
+
+  const polarToCartesian = (angle: number) => ({
+    x: cx + radius * Math.cos(-angle * RADIAN),
+    y: cy + radius * Math.sin(-angle * RADIAN)
+  });
+
+  let pathD = '';
+  const safeMidAngle = Number.isFinite(midAngle) ? midAngle : (startAngle + endAngle) / 2;
+  const needsFlip = safeMidAngle > 90 && safeMidAngle < 270;
+  if (percent > 0.99) {
+    const start = { x: cx + radius, y: cy };
+    const mid = { x: cx - radius, y: cy };
+    pathD = `M ${start.x} ${start.y} A ${radius} ${radius} 0 1 1 ${mid.x} ${mid.y} A ${radius} ${radius} 0 1 1 ${start.x} ${start.y}`;
+  } else {
+    let start = polarToCartesian(startAngle);
+    let end = polarToCartesian(endAngle);
+    const largeArcFlag = Math.abs(endAngle - startAngle) > 180 ? 1 : 0;
+    let sweepFlag = startAngle > endAngle ? 1 : 0;
+    if (needsFlip) {
+      [start, end] = [end, start];
+      sweepFlag = sweepFlag ? 0 : 1;
+    }
+    pathD = `M ${start.x} ${start.y} A ${radius} ${radius} 0 ${largeArcFlag} ${sweepFlag} ${end.x} ${end.y}`;
+  }
+
+  const pathId = `pie-label-arc-${index}`;
   return (
-    <text
-      x={x}
-      y={y}
-      fill="#e2e8f0"
-      textAnchor={x > cx ? 'start' : 'end'}
-      dominantBaseline="central"
-      fontSize={12}
-      fontWeight={800}
-    >
-      {`${(percent * 100).toFixed(0)}%`}
-    </text>
+    <g>
+      <path id={pathId} d={pathD} fill="none" stroke="none" />
+      <text fill="#e2e8f0" fontSize={11} fontWeight={800}>
+        <textPath href={`#${pathId}`} xlinkHref={`#${pathId}`} startOffset="50%" textAnchor="middle">
+          {`${(percent * 100).toFixed(0)}%`}
+        </textPath>
+      </text>
+    </g>
   );
 };
 
@@ -87,22 +108,22 @@ const Emissions: React.FC<EmissionsProps> = ({ trips, electricity, onDeleteTrips
   const totalDistance = trips.reduce((acc, t) => acc + Number(t.distance), 0);
 
   return (
-    <div className="space-y-6 pb-24 animate-in fade-in slide-in-from-right-4 duration-300 pt-4">
+    <div className="space-y-8 pb-24 animate-in fade-in slide-in-from-right-4 duration-300 pt-4">
       {/* CUMULATIVE TRAVEL ANALYSIS */}
-      <div className="glass p-8 rounded-[2.5rem] bg-white dark:bg-slate-900 text-slate-900 dark:text-white border border-slate-200 dark:border-white/10 shadow-2xl relative overflow-hidden">
+      <div className="glass p-8 rounded-[2.5rem] bg-white dark:bg-slate-900 text-slate-900 dark:text-white border border-slate-200 dark:border-white/10 shadow-xl relative overflow-hidden">
         <div className="relative z-10">
-          <span className="text-[10px] font-black text-emerald-500 dark:text-emerald-400 uppercase tracking-[0.2em]">All-Time Travel Impact</span>
+          <span className="text-[11px] font-black text-emerald-500 dark:text-emerald-400 uppercase tracking-[0.16em]">All-Time Travel Impact</span>
           <div className="flex items-baseline gap-2 mt-2">
             <h2 className="text-5xl font-black tracking-tighter text-slate-900 dark:text-white">{totalTravelCO2.toFixed(1)}</h2>
             <span className="text-sm font-bold text-slate-500 dark:text-slate-400">kg CO2</span>
           </div>
           <div className="mt-6 grid grid-cols-2 gap-4">
              <div className="p-4 bg-slate-100 dark:bg-white/5 rounded-2xl border border-slate-200 dark:border-white/5">
-                <p className="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase">Distance Covered</p>
+                <p className="text-[11px] font-black text-slate-400 dark:text-slate-400 uppercase">Distance Covered</p>
                 <p className="text-xl font-black text-slate-900 dark:text-white">{totalDistance.toFixed(0)} <span className="text-[10px] text-slate-500 dark:text-slate-400">km</span></p>
              </div>
              <div className="p-4 bg-slate-100 dark:bg-white/5 rounded-2xl border border-slate-200 dark:border-white/5">
-                <p className="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase">Trip Count</p>
+                <p className="text-[11px] font-black text-slate-400 dark:text-slate-400 uppercase">Trip Count</p>
                 <p className="text-xl font-black text-slate-900 dark:text-white">{trips.length} <span className="text-[10px] text-slate-500 dark:text-slate-400">logs</span></p>
              </div>
           </div>
@@ -110,7 +131,7 @@ const Emissions: React.FC<EmissionsProps> = ({ trips, electricity, onDeleteTrips
 
         {pieData.length > 0 ? (
           <>
-            <div className="h-64 w-full mt-8 bg-slate-900 rounded-2xl border border-slate-800 p-3">
+            <div className="h-64 w-full mt-8 bg-slate-900 rounded-2xl border border-slate-800 p-3 relative">
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
                   <Pie
@@ -132,11 +153,17 @@ const Emissions: React.FC<EmissionsProps> = ({ trips, electricity, onDeleteTrips
                   <Tooltip content={<CustomTooltip />} />
                 </PieChart>
               </ResponsiveContainer>
+              <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                <div className="text-center">
+                  <div className="text-[11px] font-black text-slate-400 uppercase tracking-[0.16em]">Total</div>
+                  <div className="text-xl font-black text-white">{totalTravelCO2.toFixed(1)} kg</div>
+                </div>
+              </div>
             </div>
             
             {/* Legend with vehicle colors and delete option */}
             <div className="mt-6 space-y-2">
-              <h4 className="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-3">Vehicle Breakdown</h4>
+              <h4 className="text-[11px] font-black text-slate-400 dark:text-slate-400 uppercase tracking-[0.16em] mb-3">Vehicle Breakdown</h4>
               <div className="grid grid-cols-1 gap-2">
                 {pieData.map((entry, index) => (
                   <div 
@@ -150,8 +177,8 @@ const Emissions: React.FC<EmissionsProps> = ({ trips, electricity, onDeleteTrips
                       ></div>
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-black text-slate-800 dark:text-white truncate">{entry.name}</p>
-                        <p className="text-[9px] font-bold text-slate-500 dark:text-slate-400">
-                          {Number(entry.value).toFixed(2)} kg CO2 • {((Number(entry.value) / totalTravelCO2) * 100).toFixed(1)}%
+                        <p className="text-[10px] font-bold text-slate-500 dark:text-slate-400">
+                          {Number(entry.value).toFixed(2)} kg CO2 | {((Number(entry.value) / totalTravelCO2) * 100).toFixed(1)}%
                         </p>
                       </div>
                     </div>
@@ -173,32 +200,32 @@ const Emissions: React.FC<EmissionsProps> = ({ trips, electricity, onDeleteTrips
             </div>
           </>
         ) : (
-          <div className="py-16 text-center text-slate-400 dark:text-slate-600 text-[10px] font-black uppercase tracking-widest">No cumulative data recorded</div>
+          <div className="py-16 text-center text-slate-400 dark:text-slate-500 text-[11px] font-black uppercase tracking-[0.16em]">No cumulative data recorded</div>
         )}
       </div>
 
       {/* MONTHLY ENERGY BENCHMARK */}
-      <div className="glass p-6 rounded-[2rem] bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-white/5 shadow-xl">
+      <div className="glass p-6 rounded-[2rem] bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-white/5 shadow-lg">
         <div className="flex justify-between items-center mb-6">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 bg-blue-500/10 rounded-xl flex items-center justify-center text-blue-500">
               <i className="fa-solid fa-plug-circle-bolt"></i>
             </div>
-            <h3 className="text-[10px] font-black text-slate-800 dark:text-white uppercase tracking-widest">Fixed Monthly Energy</h3>
+            <h3 className="text-[11px] font-black text-slate-800 dark:text-white uppercase tracking-[0.16em]">Fixed Monthly Energy</h3>
           </div>
           <div className="text-right">
-             <div className="text-[10px] font-black text-blue-500">{(monthlyEnergyCO2/30).toFixed(2)}kg/day</div>
+             <div className="text-[10px] font-black text-blue-500">{(monthlyEnergyCO2/30).toFixed(2)} kg/day</div>
           </div>
         </div>
         
         <div className="p-5 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-100 dark:border-white/5 relative overflow-hidden">
           <div className="flex justify-between items-end relative z-10">
             <div>
-               <p className="text-[9px] font-bold text-slate-400 uppercase mb-1">Grid Consumption</p>
+               <p className="text-[11px] font-bold text-slate-400 uppercase mb-1">Grid Consumption</p>
                <div className="text-3xl font-black text-slate-800 dark:text-white">{Number(electricity) || 0} <span className="text-xs font-bold text-slate-400">kWh</span></div>
             </div>
             <div className="text-right">
-               <p className="text-[9px] font-bold text-slate-400 uppercase mb-1">Monthly CO₂</p>
+               <p className="text-[11px] font-bold text-slate-400 uppercase mb-1">Monthly CO2</p>
                <div className="text-3xl font-black text-blue-500">{monthlyEnergyCO2.toFixed(1)} <span className="text-xs font-bold text-blue-400/60">kg</span></div>
             </div>
           </div>
@@ -208,7 +235,7 @@ const Emissions: React.FC<EmissionsProps> = ({ trips, electricity, onDeleteTrips
 
       {/* VEHICLE EFFICIENCY RANKING */}
       <div className="space-y-4">
-        <h3 className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest ml-1">Modal Distribution</h3>
+        <h3 className="text-[11px] font-black text-slate-400 dark:text-slate-400 uppercase tracking-[0.16em] ml-1">Modal Distribution</h3>
         <div className="space-y-3">
           {Object.entries(vehicleStats).sort((a,b) => Number(b[1]) - Number(a[1])).map(([vehicle, co2], idx) => (
             <div key={vehicle} className="glass p-4 rounded-2xl flex items-center gap-4 bg-white dark:bg-slate-900/40 border-white/5">

@@ -47,15 +47,18 @@ const Auth: React.FC<AuthProps> = ({ onLogin }) => {
 
   return (
     <div className="fixed inset-0 z-[100] bg-slate-50 dark:bg-slate-950 flex flex-col px-8 pt-24 pb-12 overflow-y-auto">
-      <div className="mb-12">
-        <div className="w-16 h-16 bg-emerald-500 rounded-3xl flex items-center justify-center text-white text-3xl mb-6 shadow-2xl">
-          <i className="fa-solid fa-leaf"></i>
+      <div className="w-full max-w-md mx-auto">
+        <div className="mb-12">
+          <div className="w-16 h-16 bg-emerald-500 rounded-3xl flex items-center justify-center text-white text-3xl mb-6 shadow-xl">
+            <i className="fa-solid fa-leaf"></i>
+          </div>
+          <h1 className="text-4xl font-black text-slate-800 dark:text-white tracking-tight">EcoPulse AI</h1>
+          <p className="text-slate-600 dark:text-slate-300 font-medium mt-2 leading-relaxed">
+            Next-Gen Sustainability Core
+          </p>
         </div>
-        <h1 className="text-4xl font-black text-slate-800 dark:text-white tracking-tight">EcoPulse AI</h1>
-        <p className="text-slate-500 font-medium mt-2">Next-Gen Sustainability Core</p>
-      </div>
 
-      <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-4">
         {error && <div className="p-4 bg-rose-500/10 border border-rose-500/20 rounded-2xl text-rose-500 text-xs font-bold">{error}</div>}
         <input
           type="text" required value={username} onChange={(e) => setUsername(e.target.value)}
@@ -67,15 +70,16 @@ const Auth: React.FC<AuthProps> = ({ onLogin }) => {
           placeholder="Password"
           className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-5 rounded-2xl font-bold"
         />
-        <button type="submit" className="w-full bg-slate-900 dark:bg-emerald-500 text-white p-5 rounded-2xl font-black uppercase tracking-widest shadow-2xl">
+        <button type="submit" className="w-full bg-slate-900 dark:bg-emerald-500 text-white py-4 px-5 rounded-2xl font-black uppercase tracking-[0.18em] shadow-xl">
           {isLogin ? 'Secure Login' : 'Initialize Account'}
         </button>
-      </form>
+        </form>
 
-      <div className="mt-auto pt-12 text-center">
-        <button onClick={() => {setIsLogin(!isLogin); setError(null);}} className="text-sm font-bold text-slate-500 uppercase tracking-widest">
-          {isLogin ? "Join the network" : "Existing user? Sign in"}
-        </button>
+        <div className="mt-auto pt-12 text-center">
+          <button onClick={() => {setIsLogin(!isLogin); setError(null);}} className="text-sm font-bold text-slate-500 dark:text-slate-300 uppercase tracking-[0.16em]">
+            {isLogin ? "Join the network" : "Existing user? Sign in"}
+          </button>
+        </div>
       </div>
     </div>
   );

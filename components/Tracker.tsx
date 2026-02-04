@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { VehicleType, Trip, UtilityBill, CustomVehicle } from '../services/types';
 import { predictEmissionFactor, verifyBillImage } from '../services/geminiService';
 
-// Haversine formula for distance calculation (fallback without Google Maps)
+// Haversine formula for distance calculation
 const calculateHaversineDistance = (
   coord1: { lat: number; lng: number },
   coord2: { lat: number; lng: number }
@@ -21,6 +21,50 @@ const calculateHaversineDistance = (
 
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
   return R * c;
+};
+
+const vehicleIcons: Record<VehicleType, string> = {
+  Car: 'fa-car-side',
+  Bus: 'fa-bus',
+  Train: 'fa-train',
+  Bike: 'fa-bicycle',
+  Walking: 'fa-person-walking',
+  Custom: 'fa-car-side'
+};
+
+const inferIconFromName = (name: string) => {
+  const label = name.toLowerCase();
+  if (label.includes('bus')) return 'fa-bus';
+  if (label.includes('train') || label.includes('metro') || label.includes('rail')) return 'fa-train';
+  if (label.includes('bike') || label.includes('bicycle') || label.includes('cycle')) return 'fa-bicycle';
+  if (label.includes('walk')) return 'fa-person-walking';
+  if (label.includes('scooter') || label.includes('motor')) return 'fa-motorcycle';
+  if (label.includes('truck')) return 'fa-truck';
+  if (label.includes('van')) return 'fa-van-shuttle';
+  if (label.includes('taxi')) return 'fa-taxi';
+  if (label.includes('car')) return 'fa-car-side';
+  return null;
+};
+
+const getCustomVehicleIcon = (name: string, category?: CustomVehicle['category']) => {
+  const fromName = inferIconFromName(name);
+  if (fromName) return fromName;
+
+  if (category === 'public') return 'fa-bus';
+  if (category === 'personal') return 'fa-car-side';
+
+  return 'fa-car-side';
+};
+
+const getTripIcon = (trip: Trip, customVehicles: CustomVehicle[]) => {
+  if (trip.vehicle === 'Custom') {
+    const match = customVehicles.find(
+      (v) => v.name.toLowerCase() === (trip.customVehicleName || '').toLowerCase()
+    );
+    const label = trip.customVehicleName || trip.vehicle;
+    return getCustomVehicleIcon(label, match?.category);
+  }
+  return vehicleIcons[trip.vehicle] || 'fa-location-arrow';
 };
 
 interface TrackerProps {
@@ -60,7 +104,6 @@ const Tracker: React.FC<TrackerProps> = ({
   const [vehicle, setVehicle] = useState<VehicleType>('Car');
   const [selectedCustomVehicle, setSelectedCustomVehicle] = useState<string>('');
   const [scanning, setScanning] = useState(false);
-  const [coords, setCoords] = useState<{lat: number, lng: number} | undefined>(undefined);
   
   // Tracking mode
   const [trackingMode, setTrackingMode] = useState<'manual' | 'automatic'>('manual');
@@ -86,16 +129,9 @@ const Tracker: React.FC<TrackerProps> = ({
     kind: 'custom' as const,
     key: `custom-${cv.name}`,
     label: cv.name,
-    icon: 'fa-car-side',
+    icon: getCustomVehicleIcon(cv.name, cv.category),
     customName: cv.name
   }));
-
-  useEffect(() => {
-    navigator.geolocation.getCurrentPosition(
-      (pos) => setCoords({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
-      () => console.log("Tracker location denied.")
-    );
-  }, []);
 
   // NEW: Update selected vehicle if it gets removed
   useEffect(() => {
@@ -289,7 +325,7 @@ const Tracker: React.FC<TrackerProps> = ({
     setScanning(true);
     const reader = new FileReader();
     reader.onloadend = async () => {
-      const result = await verifyBillImage(reader.result as string, coords);
+      const result = await verifyBillImage(reader.result as string);
       if (result && result.units > 0) {
         if (result.isAnomalous) {
           alert(`Warning: Anomaly detected. ${result.reasoning || 'Please verify manually.'}`);
@@ -303,8 +339,8 @@ const Tracker: React.FC<TrackerProps> = ({
 
   return (
     <>
-      <div className="space-y-6 pb-24 pt-4 animate-in slide-in-from-bottom-4">
-        <div className="flex bg-white dark:bg-slate-900 p-1.5 rounded-2xl shadow-xl border border-slate-100 dark:border-slate-800">
+      <div className="space-y-8 pb-24 pt-4 animate-in slide-in-from-bottom-4">
+        <div className="flex bg-white dark:bg-slate-900 p-1.5 rounded-2xl shadow-lg border border-slate-100 dark:border-slate-800">
           <button 
             onClick={() => setActiveCategory('travel')} 
             className={`flex-1 py-3.5 rounded-xl font-black text-xs uppercase tracking-widest transition-all ${activeCategory === 'travel' ? 'bg-slate-900 dark:bg-emerald-500 text-white shadow-lg' : 'text-slate-400'}`}
@@ -320,9 +356,9 @@ const Tracker: React.FC<TrackerProps> = ({
         </div>
 
         {activeCategory === 'travel' ? (
-          <div className="glass p-6 rounded-[2rem] shadow-xl space-y-6 bg-white dark:bg-slate-900/40 border-white/5">
+          <div className="glass p-6 rounded-[2rem] shadow-lg space-y-6 bg-white dark:bg-slate-900/40 border-white/5">
             <div className="flex items-center justify-between mb-2">
-              <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Select Transport</h3>
+              <h3 className="text-[11px] font-black text-slate-400 uppercase tracking-[0.16em]">Select Transport</h3>
               <button
                 onClick={() => setShowCustomVehicleModal(true)}
                 className="text-[10px] font-black text-emerald-500 uppercase tracking-widest flex items-center gap-1 hover:text-emerald-600 transition-colors"
@@ -366,14 +402,14 @@ const Tracker: React.FC<TrackerProps> = ({
                 <div className="w-full">
                   <div className="flex items-center justify-between gap-3 p-4 bg-slate-50 dark:bg-slate-800/60 rounded-2xl border border-slate-200 dark:border-slate-700">
                     <div>
-                      <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest">No Vehicles Yet</div>
-                      <div className="text-xs text-slate-600 dark:text-slate-400 font-medium mt-1">
+                      <div className="text-[11px] font-black text-slate-400 uppercase tracking-[0.16em]">No Vehicles Yet</div>
+                      <div className="text-xs text-slate-600 dark:text-slate-300 font-medium mt-1">
                         Add your first custom vehicle to start logging trips.
                       </div>
                     </div>
                     <button
                       onClick={() => setShowCustomVehicleModal(true)}
-                      className="px-3 py-2 bg-emerald-500 text-white text-[10px] font-black uppercase tracking-widest rounded-xl shadow-lg"
+                      className="px-3 py-2 bg-emerald-500 text-white text-[10px] font-black uppercase tracking-[0.12em] rounded-xl shadow-lg"
                     >
                       Add
                     </button>
@@ -436,8 +472,8 @@ const Tracker: React.FC<TrackerProps> = ({
                       <i className="fa-solid fa-route text-2xl"></i>
                     </div>
                     <h4 className="text-sm font-black text-slate-800 dark:text-white mb-2">Ready to Track</h4>
-                    <p className="text-[10px] text-slate-500 dark:text-slate-400 font-medium">
-                      GPS will calculate distance automatically using Google Maps
+                    <p className="text-[11px] text-slate-500 dark:text-slate-300 font-medium">
+                      GPS will calculate distance automatically
                     </p>
                   </div>
                 ) : (
@@ -464,7 +500,7 @@ const Tracker: React.FC<TrackerProps> = ({
             {trackingMode === 'manual' ? (
               <button 
                 onClick={handleAddTrip} 
-                className="w-full bg-slate-900 dark:bg-emerald-500 text-white p-5 rounded-2xl font-black uppercase tracking-widest shadow-2xl active:scale-95 transition-transform"
+                className="w-full bg-slate-900 dark:bg-emerald-500 text-white py-4 px-5 rounded-2xl font-black uppercase tracking-[0.18em] shadow-xl active:scale-95 transition-transform"
               >
                 Log Trip
               </button>
@@ -472,7 +508,7 @@ const Tracker: React.FC<TrackerProps> = ({
               !isTracking ? (
                 <button 
                   onClick={startAutoTracking} 
-                  className="w-full bg-emerald-500 text-white p-5 rounded-2xl font-black uppercase tracking-widest shadow-2xl active:scale-95 transition-transform flex items-center justify-center gap-3"
+                  className="w-full bg-emerald-500 text-white py-4 px-5 rounded-2xl font-black uppercase tracking-[0.18em] shadow-xl active:scale-95 transition-transform flex items-center justify-center gap-3"
                 >
                   <i className="fa-solid fa-play"></i>
                   Start Tracking
@@ -480,7 +516,7 @@ const Tracker: React.FC<TrackerProps> = ({
               ) : (
                 <button 
                   onClick={stopAutoTracking} 
-                  className="w-full bg-rose-500 text-white p-5 rounded-2xl font-black uppercase tracking-widest shadow-2xl active:scale-95 transition-transform flex items-center justify-center gap-3"
+                  className="w-full bg-rose-500 text-white py-4 px-5 rounded-2xl font-black uppercase tracking-[0.18em] shadow-xl active:scale-95 transition-transform flex items-center justify-center gap-3"
                 >
                   <i className="fa-solid fa-stop"></i>
                   Stop & Log Trip
@@ -513,7 +549,7 @@ const Tracker: React.FC<TrackerProps> = ({
               </div>
               <button 
                 onClick={handleAddBill} 
-                className="w-full bg-slate-900 dark:bg-emerald-500 text-white p-5 rounded-2xl font-black uppercase tracking-widest shadow-xl"
+                className="w-full bg-slate-900 dark:bg-emerald-500 text-white py-4 px-5 rounded-2xl font-black uppercase tracking-[0.18em] shadow-lg"
               >
                 Save Manually
               </button>
@@ -530,7 +566,7 @@ const Tracker: React.FC<TrackerProps> = ({
                     <div className="w-16 h-16 bg-white dark:bg-slate-800 rounded-full flex items-center justify-center text-slate-400 mb-4 shadow-lg">
                       <i className="fa-solid fa-camera text-2xl"></i>
                     </div>
-                    <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Scan Utility Bill</span>
+                    <span className="text-[11px] font-black text-slate-500 uppercase tracking-[0.16em]">Scan Utility Bill</span>
                     <input type="file" accept="image/*" className="hidden" onChange={handleBillUpload} />
                  </label>
                )}
@@ -540,17 +576,17 @@ const Tracker: React.FC<TrackerProps> = ({
 
         <div className="space-y-4">
           <div className="flex items-center justify-between ml-1">
-            <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Vault Activity</h3>
+            <h3 className="text-[11px] font-black text-slate-400 uppercase tracking-[0.16em]">Vault Activity</h3>
             <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-lg">
               <button 
                 onClick={() => setActiveFeedTab('trips')} 
-                className={`px-3 py-1 text-[9px] font-black rounded-md uppercase transition-all ${activeFeedTab === 'trips' ? 'bg-white dark:bg-slate-700 text-slate-800 dark:text-white' : 'text-slate-400'}`}
+                className={`px-3 py-1 text-[10px] font-black rounded-md uppercase transition-all ${activeFeedTab === 'trips' ? 'bg-white dark:bg-slate-700 text-slate-800 dark:text-white' : 'text-slate-400'}`}
               >
                 Trips
               </button>
               <button 
                 onClick={() => setActiveFeedTab('utilities')} 
-                className={`px-3 py-1 text-[9px] font-black rounded-md uppercase transition-all ${activeFeedTab === 'utilities' ? 'bg-white dark:bg-slate-700 text-slate-800 dark:text-white' : 'text-slate-400'}`}
+                className={`px-3 py-1 text-[10px] font-black rounded-md uppercase transition-all ${activeFeedTab === 'utilities' ? 'bg-white dark:bg-slate-700 text-slate-800 dark:text-white' : 'text-slate-400'}`}
               >
                 Bills
               </button>
@@ -562,7 +598,7 @@ const Tracker: React.FC<TrackerProps> = ({
               const tripDate = new Date(t.date).toISOString().split('T')[0];
               const today = new Date().toISOString().split('T')[0];
               return tripDate === today;
-            }).length === 0 ? <div className="p-8 text-center text-[10px] font-bold text-slate-400 uppercase">No Trips Today</div> :
+            }).length === 0 ? <div className="p-8 text-center text-[11px] font-bold text-slate-400 uppercase">No Trips Today</div> :
             <div className="space-y-3">
               {trips.filter(t => {
                 const tripDate = new Date(t.date).toISOString().split('T')[0];
@@ -570,9 +606,7 @@ const Tracker: React.FC<TrackerProps> = ({
                 return tripDate === today;
               }).slice(0, 10).map(t => {
                 // Get the appropriate icon for the vehicle
-                const vehicleIcon = t.vehicle === 'Custom' 
-                  ? 'fa-car-side'
-                  : baseVehicles.find(v => v.type === t.vehicle)?.icon || 'fa-location-arrow';
+                const vehicleIcon = getTripIcon(t, customVehicles);
                 
                 return (
                 <div key={t.id} className="glass p-4 rounded-2xl flex items-center justify-between group bg-white dark:bg-slate-900/40">
@@ -587,8 +621,8 @@ const Tracker: React.FC<TrackerProps> = ({
                           <i className="fa-solid fa-star text-amber-500 text-[8px] ml-1"></i>
                         )}
                       </h4>
-                      <p className="text-[9px] font-bold text-slate-400 uppercase">
-                        {t.distance} km • {t.co2.toFixed(2)} kg CO2 • {new Date(t.date).toLocaleDateString()}
+                      <p className="text-[11px] font-bold text-slate-400 uppercase">
+                        {t.distance} km | {t.co2.toFixed(2)} kg CO2 | {new Date(t.date).toLocaleDateString()}
                       </p>
                     </div>
                   </div>
@@ -602,7 +636,7 @@ const Tracker: React.FC<TrackerProps> = ({
               )})}
             </div>
           ) : (
-            bills.length === 0 ? <div className="p-8 text-center text-[10px] font-bold text-slate-400 uppercase">No Bills</div> :
+            bills.length === 0 ? <div className="p-8 text-center text-[11px] font-bold text-slate-400 uppercase">No Bills</div> :
             <div className="space-y-3">
               {bills.map(b => (
                 <div key={b.id} className="glass p-4 rounded-2xl flex items-center justify-between group bg-white dark:bg-slate-900/40 border-l-4 border-l-blue-500">
@@ -617,7 +651,7 @@ const Tracker: React.FC<TrackerProps> = ({
                           <i className="fa-solid fa-exclamation-triangle text-amber-500 text-[8px] ml-1"></i>
                         )}
                       </h4>
-                      <p className="text-[9px] font-bold text-slate-400 uppercase">{b.units} kWh</p>
+                      <p className="text-[11px] font-bold text-slate-400 uppercase">{b.units} kWh</p>
                     </div>
                   </div>
                   <button 
@@ -634,7 +668,7 @@ const Tracker: React.FC<TrackerProps> = ({
 
         <button 
           onClick={onFinishDay} 
-          className="w-full bg-emerald-500 text-white p-5 rounded-[2rem] font-black text-sm uppercase tracking-widest shadow-2xl flex items-center justify-center gap-4 active:scale-95 transition-transform mt-4"
+          className="w-full bg-emerald-500 text-white py-4 px-5 rounded-[2rem] font-black text-sm uppercase tracking-[0.18em] shadow-xl flex items-center justify-center gap-4 active:scale-95 transition-transform mt-4"
         >
           ML Analysis <i className="fa-solid fa-magnifying-glass-chart"></i>
         </button>
@@ -643,7 +677,7 @@ const Tracker: React.FC<TrackerProps> = ({
       {/* Custom Vehicle Modal - UPDATED: AI-predicted emission factor */}
       {showCustomVehicleModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in">
-          <div className="bg-white dark:bg-slate-900 rounded-[2rem] p-6 max-w-md w-full shadow-2xl animate-in zoom-in-95 max-h-[90vh] overflow-y-auto">
+          <div className="bg-white dark:bg-slate-900 rounded-[2rem] p-6 max-w-md w-full shadow-xl animate-in zoom-in-95 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-xl font-black text-slate-800 dark:text-white">Add Custom Vehicle</h2>
               <button 
@@ -665,7 +699,7 @@ const Tracker: React.FC<TrackerProps> = ({
 
             <div className="space-y-4">
               <div>
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 block">
+                <label className="text-[11px] font-black text-slate-400 uppercase tracking-[0.16em] mb-2 block">
                   Vehicle Name *
                 </label>
                 <input
@@ -679,7 +713,7 @@ const Tracker: React.FC<TrackerProps> = ({
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 block">
+                  <label className="text-[11px] font-black text-slate-400 uppercase tracking-[0.16em] mb-2 block">
                     Make (Optional)
                   </label>
                   <input
@@ -692,7 +726,7 @@ const Tracker: React.FC<TrackerProps> = ({
                 </div>
 
                 <div>
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 block">
+                  <label className="text-[11px] font-black text-slate-400 uppercase tracking-[0.16em] mb-2 block">
                     Model (Optional)
                   </label>
                   <input
@@ -707,7 +741,7 @@ const Tracker: React.FC<TrackerProps> = ({
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 block">
+                  <label className="text-[11px] font-black text-slate-400 uppercase tracking-[0.16em] mb-2 block">
                     Year (Optional)
                   </label>
                   <input
@@ -720,7 +754,7 @@ const Tracker: React.FC<TrackerProps> = ({
                 </div>
 
                 <div>
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 block">
+                  <label className="text-[11px] font-black text-slate-400 uppercase tracking-[0.16em] mb-2 block">
                     Vehicle Type
                   </label>
                   <select
@@ -741,7 +775,7 @@ const Tracker: React.FC<TrackerProps> = ({
               </div>
 
               <div>
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 block">
+                <label className="text-[11px] font-black text-slate-400 uppercase tracking-[0.16em] mb-2 block">
                   Fuel Type
                 </label>
                 <select
@@ -760,7 +794,7 @@ const Tracker: React.FC<TrackerProps> = ({
               </div>
 
               {isPredictingFactor && (
-                <div className="text-[9px] font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-widest text-center">
+                <div className="text-[11px] font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-[0.16em] text-center">
                   Estimating emissions from API...
                 </div>
               )}
@@ -768,7 +802,7 @@ const Tracker: React.FC<TrackerProps> = ({
               <button
                 onClick={handleSaveCustomVehicle}
                 disabled={!customVehicleName.trim() || isPredictingFactor}
-                className="w-full bg-emerald-500 text-white p-4 rounded-xl font-black uppercase tracking-widest disabled:opacity-50 disabled:cursor-not-allowed shadow-xl active:scale-95 transition-transform"
+                className="w-full bg-emerald-500 text-white py-4 px-5 rounded-xl font-black uppercase tracking-[0.16em] disabled:opacity-50 disabled:cursor-not-allowed shadow-lg active:scale-95 transition-transform"
               >
                 <i className={`fa-solid ${isPredictingFactor ? 'fa-spinner animate-spin' : 'fa-check'} mr-2`}></i>
                 {isPredictingFactor ? 'Estimating Emissions...' : 'Save Vehicle'}

@@ -1,7 +1,5 @@
 /* EcoPulse AI - Enhanced Styles */
 
-@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap');
-
 * {
   margin: 0;
   padding: 0;
@@ -13,19 +11,22 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   transition: background-color 0.3s ease, color 0.3s ease;
+  line-height: 1.5;
 }
 
 /* Glass morphism effects */
 .glass {
-  background: rgba(255, 255, 255, 0.7);
-  backdrop-filter: blur(12px);
-  border: 1px solid rgba(0, 0, 0, 0.05);
+  background: rgba(255, 255, 255, 0.78);
+  backdrop-filter: blur(14px);
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  box-shadow: 0 12px 28px -24px rgba(15, 23, 42, 0.35);
   transition: all 0.3s ease;
 }
 
 .dark .glass {
-  background: rgba(15, 23, 42, 0.6);
-  border: 1px solid rgba(255, 255, 255, 0.05);
+  background: rgba(15, 23, 42, 0.72);
+  border: 1px solid rgba(148, 163, 184, 0.14);
+  box-shadow: 0 18px 34px -26px rgba(0, 0, 0, 0.6);
 }
 
 /* Scrollbar styling */
@@ -59,6 +60,19 @@ body {
 /* Active tab styling */
 .active-tab {
   color: #10b981;
+  position: relative;
+}
+
+.active-tab::after {
+  content: '';
+  position: absolute;
+  bottom: -12px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 4px;
+  height: 4px;
+  background: #10b981;
+  border-radius: 50%;
 }
 
 /* AI pulse animation */
@@ -104,11 +118,13 @@ body {
   padding-bottom: env(safe-area-inset-bottom);
 }
 
-/* Smooth transitions */
-* {
-  transition-property: background-color, border-color, color, fill, stroke, opacity, box-shadow, transform;
-  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
-  transition-duration: 150ms;
+button,
+a,
+input,
+select,
+textarea {
+  transition: background-color 150ms ease, border-color 150ms ease, color 150ms ease,
+    box-shadow 150ms ease, transform 150ms ease;
 }
 
 /* Focus styles for accessibility */
@@ -195,12 +211,6 @@ select::placeholder {
   animation-name: slideInFromBottom;
 }
 
-/* Improved card hover effects */
-.glass:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1);
-}
-
 /* Loading spinner */
 @keyframes spin {
   to {
@@ -238,11 +248,6 @@ html {
 
 html.dark {
   background-color: #020617;
-}
-
-/* Improved button active states */
-button:active {
-  transform: scale(0.98);
 }
 
 /* Better focus rings for dark mode */
