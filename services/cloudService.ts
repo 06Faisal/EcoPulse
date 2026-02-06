@@ -23,6 +23,11 @@ const mapTripRow = (row: any): Trip => ({
   distance: row.distance,
   date: row.date,
   co2: row.co2,
+  vehicleType: row.vehicle_type || undefined,
+  fuelType: row.fuel_type || undefined,
+  vehicleCondition: row.vehicle_condition || undefined,
+  drivingStyle: row.driving_style || undefined,
+  odometerKm: row.odometer_km ?? undefined,
   isAutomatic: row.is_automatic || undefined,
   confidence: row.confidence || undefined
 });
@@ -42,6 +47,11 @@ const mapVehicleRow = (row: any): CustomVehicle => ({
   name: row.name,
   factor: row.factor,
   category: row.category || undefined,
+  vehicleType: row.vehicle_type || undefined,
+  fuelType: row.fuel_type || undefined,
+  vehicleCondition: row.vehicle_condition || undefined,
+  drivingStyle: row.driving_style || undefined,
+  odometerKm: row.odometer_km ?? undefined,
   addedDate: row.added_date || undefined
 });
 
@@ -151,6 +161,11 @@ export const cloud = {
       distance: trip.distance,
       date: trip.date,
       co2: trip.co2,
+      vehicle_type: trip.vehicleType || null,
+      fuel_type: trip.fuelType || null,
+      vehicle_condition: trip.vehicleCondition || null,
+      driving_style: trip.drivingStyle || null,
+      odometer_km: trip.odometerKm ?? null,
       is_automatic: trip.isAutomatic || null,
       confidence: trip.confidence || null
     });
@@ -188,6 +203,11 @@ export const cloud = {
       name: vehicle.name,
       factor: vehicle.factor,
       category: vehicle.category || null,
+      vehicle_type: vehicle.vehicleType || null,
+      fuel_type: vehicle.fuelType || null,
+      vehicle_condition: vehicle.vehicleCondition || null,
+      driving_style: vehicle.drivingStyle || null,
+      odometer_km: vehicle.odometerKm ?? null,
       added_date: vehicle.addedDate || new Date().toISOString()
     });
     if (error) throw error;

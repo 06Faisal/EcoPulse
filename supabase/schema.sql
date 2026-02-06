@@ -22,6 +22,11 @@ create table if not exists trips (
   distance numeric not null,
   date timestamptz not null,
   co2 numeric not null,
+  vehicle_type text,
+  fuel_type text,
+  vehicle_condition text,
+  driving_style text,
+  odometer_km numeric,
   is_automatic boolean,
   confidence numeric,
   created_at timestamptz not null default now()
@@ -50,12 +55,32 @@ create table if not exists custom_vehicles (
   name text not null,
   factor numeric not null,
   category text,
+  vehicle_type text,
+  fuel_type text,
+  vehicle_condition text,
+  driving_style text,
+  odometer_km numeric,
   added_date timestamptz not null default now()
 );
 
 create index if not exists custom_vehicles_user_id_idx on custom_vehicles (user_id);
 
 alter table custom_vehicles add constraint custom_vehicle_unique unique (user_id, name);
+
+-- Schema updates for new vehicle metadata fields (safe to re-run)
+alter table trips
+  add column if not exists vehicle_type text,
+  add column if not exists fuel_type text,
+  add column if not exists vehicle_condition text,
+  add column if not exists driving_style text,
+  add column if not exists odometer_km numeric;
+
+alter table custom_vehicles
+  add column if not exists vehicle_type text,
+  add column if not exists fuel_type text,
+  add column if not exists vehicle_condition text,
+  add column if not exists driving_style text,
+  add column if not exists odometer_km numeric;
 
 -- RLS
 alter table profiles enable row level security;

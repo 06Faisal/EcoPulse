@@ -384,11 +384,47 @@ Return JSON with a "recommendations" array of exactly 3 strings.`;
     ];
   }
 
-  let mlConfidence = 60;
-  if (timeSeriesData.length > 7) mlConfidence += 20;
-  if (trend.direction === "stable") mlConfidence += 15;
-  if (seasonal.hasPattern) mlConfidence += 5;
-  mlConfidence = Math.min(mlConfidence, 95);
+  const uniqueDays = timeSeriesData.length;
+  const totalTrips = last30Days.length;
+  const latestTripTimestamp = last30Days.reduce((latest, trip) => {
+    const ts = new Date(trip.date).getTime();
+    return ts > latest ? ts : latest;
+  }, 0);
+  const daysSinceLastTrip = latestTripTimestamp
+    ? Math.floor((now.getTime() - latestTripTimestamp) / (1000 * 60 * 60 * 24))
+    : 30;
+
+  const coverageScore = Math.min(uniqueDays / 30, 1);
+  const volumeScore = Math.min(totalTrips / 20, 1);
+  const recencyScore = Math.max(0, 1 - daysSinceLastTrip / 14);
+  const stabilityScore = 1 - Math.min(Math.abs(trend.slope) / 0.5, 1);
+
+  const mean =
+    uniqueDays > 0 ? timeSeriesData.reduce((sum, value) => sum + value, 0) / uniqueDays : 0;
+  const variance =
+    uniqueDays > 1
+      ? timeSeriesData.reduce((sum, value) => sum + Math.pow(value - mean, 2), 0) / uniqueDays
+      : 0;
+  const stdDev = Math.sqrt(variance);
+  const variabilityScore = mean > 0 ? 1 - Math.min((stdDev / mean) / 1.5, 1) : 0;
+
+  const seasonalStrength =
+    uniqueDays > 6
+      ? Math.abs(seasonal.weekdayAvg - seasonal.weekendAvg) / Math.max(seasonal.weekdayAvg, 1)
+      : 0;
+  const seasonalityScore = Math.min(seasonalStrength / 0.5, 1);
+  const billsScore = bills.length > 0 ? 1 : 0;
+
+  const confidenceScore =
+    coverageScore * 30 +
+    volumeScore * 15 +
+    stabilityScore * 15 +
+    variabilityScore * 15 +
+    seasonalityScore * 10 +
+    recencyScore * 10 +
+    billsScore * 5;
+
+  const mlConfidence = Math.round(Math.min(95, Math.max(5, confidenceScore)));
 
   return {
     forecast: Number(totalForecast.toFixed(1)),

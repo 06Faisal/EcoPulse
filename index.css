@@ -61,10 +61,19 @@ body {
 }
 
 .reveal-on-scroll {
+  --reveal-offset: 18px;
   opacity: 0;
-  transform: translateY(18px) scale(0.98);
+  transform: translateY(var(--reveal-offset)) scale(0.98);
   transition: opacity 520ms ease, transform 520ms ease;
   will-change: opacity, transform;
+}
+
+.reveal-on-scroll[data-reveal='up'] {
+  --reveal-offset: -18px;
+}
+
+.reveal-on-scroll[data-reveal='down'] {
+  --reveal-offset: 18px;
 }
 
 .reveal-on-scroll.is-visible {

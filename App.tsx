@@ -93,12 +93,44 @@ function App() {
   }, [userProfile.darkMode]);
 
   useEffect(() => {
+    let lastScrollY = window.scrollY;
+    let ticking = false;
+
+    const updateScrollDirection = () => {
+      const currentY = window.scrollY;
+      const direction = currentY > lastScrollY ? 'down' : 'up';
+      document.documentElement.setAttribute('data-scroll-direction', direction);
+      lastScrollY = currentY;
+      ticking = false;
+    };
+
+    updateScrollDirection();
+
+    const handleScroll = () => {
+      if (!ticking) {
+        window.requestAnimationFrame(updateScrollDirection);
+        ticking = true;
+      }
+    };
+
+    window.addEventListener('scroll', handleScroll, { passive: true });
+
+    return () => {
+      window.removeEventListener('scroll', handleScroll);
+    };
+  }, []);
+
+  useEffect(() => {
     const observer = new IntersectionObserver(
       (entries) => {
         entries.forEach((entry) => {
           if (entry.isIntersecting) {
+            const direction =
+              document.documentElement.getAttribute('data-scroll-direction') || 'down';
+            entry.target.setAttribute('data-reveal', direction);
             entry.target.classList.add('is-visible');
-            observer.unobserve(entry.target);
+          } else {
+            entry.target.classList.remove('is-visible');
           }
         });
       },

@@ -1,9 +1,17 @@
 export type VehicleType = 'Car' | 'Bike' | 'Bus' | 'Train' | 'Walking' | 'Custom';
+export type FuelType = 'electric' | 'hybrid' | 'gas' | 'diesel' | 'cng' | 'lpg';
+export type VehicleCondition = 'Good' | 'Average' | 'Poor';
+export type DrivingStyle = 'Normal' | 'Aggressive' | 'Eco';
 
 export interface CustomVehicle {
   name: string;
   factor: number;
   category?: 'electric' | 'hybrid' | 'gas' | 'public' | 'personal';
+  vehicleType?: string;
+  fuelType?: FuelType;
+  vehicleCondition?: VehicleCondition;
+  drivingStyle?: DrivingStyle;
+  odometerKm?: number;
   addedDate?: string;
 }
 
@@ -14,6 +22,11 @@ export interface Trip {
   distance: number;
   date: string;
   co2: number;
+  vehicleType?: string;
+  fuelType?: FuelType;
+  vehicleCondition?: VehicleCondition;
+  drivingStyle?: DrivingStyle;
+  odometerKm?: number;
   isAutomatic?: boolean;
   confidence?: number; // ML confidence score
 }
