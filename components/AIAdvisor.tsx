@@ -24,7 +24,7 @@ const AIAdvisor: React.FC<AIAdvisorProps> = ({ insight, loading }) => {
     { subject: 'Efficiency', value: isEliteEfficiency ? 95 : 70 },
     { subject: 'Diversity', value: 75 },
     { subject: 'Frequency', value: insight.patterns.averageDailyDistance > 10 ? 80 : 60 },
-    { subject: 'Awareness', value: insight.mlConfidence || 70 }
+    { subject: 'Awareness', value: 70 }
   ] : [];
 
   return (
@@ -39,24 +39,6 @@ const AIAdvisor: React.FC<AIAdvisorProps> = ({ insight, loading }) => {
           {isEliteEfficiency && !loading && (
             <div className="inline-block mt-4 px-4 py-1.5 bg-emerald-500 text-white text-[10px] font-black uppercase tracking-[0.12em] rounded-full shadow-lg">
               <i className="fa-solid fa-crown mr-2"></i> Peak Regional Efficiency
-            </div>
-          )}
-          {insight?.mlConfidence && !loading && (
-            <div className="mt-4">
-              <div className="text-[11px] font-black text-slate-400 uppercase tracking-[0.16em] mb-2">
-                ML Confidence Score
-              </div>
-              <div className="flex items-center justify-center gap-2">
-                <div className="h-2 w-48 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
-                  <div 
-                    className="h-full bg-gradient-to-r from-emerald-400 to-emerald-600 transition-all duration-1000"
-                    style={{ width: `${insight.mlConfidence > 1 ? insight.mlConfidence : insight.mlConfidence * 100}%` }}
-                  ></div>
-                </div>
-                <span className="text-sm font-black text-emerald-500">
-                  {insight.mlConfidence > 1 ? insight.mlConfidence.toFixed(0) : (insight.mlConfidence * 100).toFixed(0)}%
-                </span>
-              </div>
             </div>
           )}
           <p className="text-sm text-slate-500 dark:text-slate-300 font-medium leading-relaxed mt-4 px-4">
