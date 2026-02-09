@@ -24,7 +24,7 @@ const calculateHaversineDistance = (
 };
 
 const BASELINE_WARNING_THRESHOLD = 0.1;
-const CEA_GRID_KG_CO2_PER_KWH = 0.710; // FY 2024-25 weighted average (CEA CO2 Baseline DB, Version 21.0)
+const CEA_GRID_KG_CO2_PER_KWH = 0.710; // CEA CO2 Baseline Database (update annually when new version is released)
 const ROUTE_MATCHING_MAX_POINTS = 100;
 const ROUTE_MATCHING_MIN_STEP_METERS = 10;
 const ROUTE_MATCHING_MIN_STEP_MS = 4000;
@@ -34,6 +34,37 @@ const DEFAULT_EV_KWH_PER_KM = {
   scooter: 0.025,
   motorcycle: 0.03
 };
+// Government of India Gazette (S.O. 1072(E), 23-Apr-2015) — CAFC Phase II (FY 2022-23 onward)
+// Table 1.2 gives petrol-equivalent L/100 km at W = 1145 kg: 4.7694
+// Fuel consumption ↔ CO2 conversion factors and petrol-equivalent multipliers are also defined in the same notification.
+const CAFC_PHASE_II_PETROL_EQ_L_PER_100KM = 4.7694;
+const CAFC_CO2_TO_FC_FACTOR = {
+  petrol: 0.04217,
+  diesel: 0.03776,
+  lpg: 0.0615,
+  cng: 0.03647
+} as const;
+const CAFC_PETROL_EQ_MULTIPLIER = {
+  petrol: 1,
+  diesel: 1.1168,
+  lpg: 0.6857,
+  cng: 1.1563
+} as const;
+
+const cafcCo2KgPerKm = (fuel: keyof typeof CAFC_CO2_TO_FC_FACTOR) => {
+  const co2GPerKm =
+    CAFC_PHASE_II_PETROL_EQ_L_PER_100KM /
+    (CAFC_CO2_TO_FC_FACTOR[fuel] * CAFC_PETROL_EQ_MULTIPLIER[fuel]);
+  return Number((co2GPerKm / 1000).toFixed(3));
+};
+
+const CAFC_CAR_BASELINES = {
+  gas: cafcCo2KgPerKm('petrol'),
+  diesel: cafcCo2KgPerKm('diesel'),
+  lpg: cafcCo2KgPerKm('lpg'),
+  cng: cafcCo2KgPerKm('cng')
+} as const;
+
 const ESTIMATED_EV_BASELINES: Partial<Record<string, number>> = {
   car_electric: Number((CEA_GRID_KG_CO2_PER_KWH * DEFAULT_EV_KWH_PER_KM.car).toFixed(3)),
   bus_electric: Number((CEA_GRID_KG_CO2_PER_KWH * DEFAULT_EV_KWH_PER_KM.bus).toFixed(3)),
@@ -41,15 +72,14 @@ const ESTIMATED_EV_BASELINES: Partial<Record<string, number>> = {
   motorcycle_electric: Number((CEA_GRID_KG_CO2_PER_KWH * DEFAULT_EV_KWH_PER_KM.motorcycle).toFixed(3))
 };
 const GOVERNMENT_BASELINES_KG_PER_KM: Partial<Record<string, number>> = {
-  // India CAFC Phase II (FY 2022-23 onward) proxy baseline:
-  // Using the average fuel consumption standard for passenger cars at W=1145 kg,
-  // converted to kg CO2/km using EPA fuel carbon content (gasoline/diesel).
-  // car_gas: 0.112 kg/km, car_diesel: 0.128 kg/km
-  car_gas: 0.112,
-  car_diesel: 0.128,
+  // India CAFC Phase II (FY 2022-23 onward) baselines derived from Govt. Gazette notification.
+  // Note: CAFC is a fleet-average standard; using W=1145 kg (Table 1.2) yields a 4.7694 L/100km
+  // petrol-equivalent target, converted to CO2 g/km using the official conversion factors.
+  car_gas: CAFC_CAR_BASELINES.gas,
+  car_diesel: CAFC_CAR_BASELINES.diesel,
+  car_cng: CAFC_CAR_BASELINES.cng,
+  car_lpg: CAFC_CAR_BASELINES.lpg,
   // India GHG Program: road transport (kg CO2/km or kg CO2/pax-km where noted)
-  car_cng: 0.068,
-  car_lpg: 0.149,
   bus: 0.015161, // pax-km (intracity bus)
   scooter: 0.0368,
   motorcycle: 0.0356,
