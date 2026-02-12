@@ -3,6 +3,15 @@ import { Trip, UtilityBill, UserProfile, CustomVehicle, VehicleType, Leaderboard
 
 const usernameToEmail = (username: string) => `${username.toLowerCase()}@ecopulse.app`;
 
+const formatSupabaseError = (error: any) => {
+  if (!error) return 'Unknown Supabase error';
+  const message = error.message || 'Unknown Supabase error';
+  const details = error.details ? `Details: ${error.details}` : '';
+  const hint = error.hint ? `Hint: ${error.hint}` : '';
+  const code = error.code ? `Code: ${error.code}` : '';
+  return [message, details, hint, code].filter(Boolean).join(' | ');
+};
+
 const mapProfileRow = (row: any): UserProfile => ({
   name: row.username,
   avatarId: row.avatar_id,
@@ -58,7 +67,7 @@ const mapVehicleRow = (row: any): CustomVehicle => ({
 export const cloud = {
   async getSessionUser() {
     const { data, error } = await supabase.auth.getSession();
-    if (error) throw error;
+    if (error) throw new Error(formatSupabaseError(error));
     return data.session?.user || null;
   },
 
@@ -74,7 +83,7 @@ export const cloud = {
 
     const email = usernameToEmail(username);
     const { data, error } = await supabase.auth.signUp({ email, password });
-    if (error || !data.user) throw error || new Error('Sign up failed.');
+    if (error || !data.user) throw new Error(formatSupabaseError(error) || 'Sign up failed.');
 
     const { error: profileError } = await supabase.from('profiles').insert({
       id: data.user.id,
@@ -88,7 +97,7 @@ export const cloud = {
       dark_mode: profile.darkMode,
       available_vehicles: profile.availableVehicles || []
     });
-    if (profileError) throw profileError;
+    if (profileError) throw new Error(formatSupabaseError(profileError));
 
     return { id: data.user.id, username };
   },
@@ -96,21 +105,23 @@ export const cloud = {
   async signIn(username: string, password: string) {
     const email = usernameToEmail(username);
     const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-    if (error || !data.user) throw error || new Error('Sign in failed.');
+    if (error || !data.user) throw new Error(formatSupabaseError(error) || 'Sign in failed.');
 
     const { data: profile, error: profileError } = await supabase
       .from('profiles')
       .select('username')
       .eq('id', data.user.id)
       .single();
-    if (profileError || !profile) throw profileError || new Error('Profile not found.');
+    if (profileError || !profile) {
+      throw new Error(formatSupabaseError(profileError) || 'Profile not found.');
+    }
 
     return { id: data.user.id, username: profile.username };
   },
 
   async signOut() {
     const { error } = await supabase.auth.signOut();
-    if (error) throw error;
+    if (error) throw new Error(formatSupabaseError(error));
   },
 
   async fetchUserData(userId: string) {
@@ -121,10 +132,10 @@ export const cloud = {
       supabase.from('custom_vehicles').select('*').eq('user_id', userId).order('added_date', { ascending: false })
     ]);
 
-    if (profileResult.error) throw profileResult.error;
-    if (tripsResult.error) throw tripsResult.error;
-    if (billsResult.error) throw billsResult.error;
-    if (vehiclesResult.error) throw vehiclesResult.error;
+    if (profileResult.error) throw new Error(formatSupabaseError(profileResult.error));
+    if (tripsResult.error) throw new Error(formatSupabaseError(tripsResult.error));
+    if (billsResult.error) throw new Error(formatSupabaseError(billsResult.error));
+    if (vehiclesResult.error) throw new Error(formatSupabaseError(vehiclesResult.error));
 
     return {
       profile: mapProfileRow(profileResult.data),
@@ -149,68 +160,57 @@ export const cloud = {
     if (Object.keys(payload).length === 0) return;
 
     const { error } = await supabase.from('profiles').update(payload).eq('id', userId);
-    if (error) throw error;
+    if (error) throw new Error(formatSupabaseError(error));
   },
 
   async insertTrip(userId: string, trip: Trip) {
-    const { error } = await supabase.from('trips').insert({
+    const payload: Record<string, unknown> = {
       id: trip.id,
       user_id: userId,
       vehicle: trip.vehicle,
       custom_vehicle_name: trip.customVehicleName || null,
       distance: trip.distance,
       date: trip.date,
-      co2: trip.co2,
-      vehicle_type: trip.vehicleType || null,
-      fuel_type: trip.fuelType || null,
-      vehicle_condition: trip.vehicleCondition || null,
-      driving_style: trip.drivingStyle || null,
-      odometer_km: trip.odometerKm ?? null,
-      is_automatic: trip.isAutomatic || null,
-      confidence: trip.confidence || null
-    });
-    if (error) throw error;
+      co2: trip.co2
+    };
+    const { error } = await supabase.from('trips').insert(payload);
+    if (error) throw new Error(formatSupabaseError(error));
   },
 
   async deleteTrip(userId: string, tripId: string) {
     const { error } = await supabase.from('trips').delete().eq('id', tripId).eq('user_id', userId);
-    if (error) throw error;
+    if (error) throw new Error(formatSupabaseError(error));
   },
 
   async insertBill(userId: string, bill: UtilityBill) {
-    const { error } = await supabase.from('bills').insert({
+    const payload: Record<string, unknown> = {
       id: bill.id,
       user_id: userId,
       month: bill.month,
       year: bill.year,
       units: bill.units,
       co2: bill.co2,
-      date: bill.date,
-      is_anomalous: bill.isAnomalous || null,
-      confidence: bill.confidence || null
-    });
-    if (error) throw error;
+      date: bill.date
+    };
+    const { error } = await supabase.from('bills').insert(payload);
+    if (error) throw new Error(formatSupabaseError(error));
   },
 
   async deleteBill(userId: string, billId: string) {
     const { error } = await supabase.from('bills').delete().eq('id', billId).eq('user_id', userId);
-    if (error) throw error;
+    if (error) throw new Error(formatSupabaseError(error));
   },
 
   async insertCustomVehicle(userId: string, vehicle: CustomVehicle) {
-    const { error } = await supabase.from('custom_vehicles').insert({
+    const payload: Record<string, unknown> = {
       user_id: userId,
       name: vehicle.name,
       factor: vehicle.factor,
       category: vehicle.category || null,
-      vehicle_type: vehicle.vehicleType || null,
-      fuel_type: vehicle.fuelType || null,
-      vehicle_condition: vehicle.vehicleCondition || null,
-      driving_style: vehicle.drivingStyle || null,
-      odometer_km: vehicle.odometerKm ?? null,
       added_date: vehicle.addedDate || new Date().toISOString()
-    });
-    if (error) throw error;
+    };
+    const { error } = await supabase.from('custom_vehicles').insert(payload);
+    if (error) throw new Error(formatSupabaseError(error));
   },
 
   async deleteCustomVehicle(userId: string, vehicleName: string) {
@@ -219,7 +219,7 @@ export const cloud = {
       .delete()
       .eq('user_id', userId)
       .eq('name', vehicleName);
-    if (error) throw error;
+    if (error) throw new Error(formatSupabaseError(error));
   },
 
   async fetchLeaderboard(userId: string): Promise<LeaderboardEntry[]> {
@@ -227,7 +227,9 @@ export const cloud = {
       .from('profiles')
       .select('id, username, points, avatar_id')
       .order('points', { ascending: false });
-    if (error || !data) throw error || new Error('Failed to load leaderboard.');
+    if (error || !data) {
+      throw new Error(formatSupabaseError(error) || 'Failed to load leaderboard.');
+    }
 
     return data.map((row: any, index: number) => ({
       name: row.username,

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Auth from './components/Auth';
 import Dashboard from './components/Dashboard';
 import Tracker from './components/Tracker';
@@ -8,7 +8,94 @@ import Profile from './components/Profile';
 import Navigation from './components/Navigation';
 import { cloud } from './services/cloudService';
 import { getAIAnalytics } from './services/geminiService';
+import { mlBackend } from './services/mlBackendService';
 import { Trip, UtilityBill, UserProfile, AIInsight, CustomVehicle, VehicleType, LeaderboardEntry } from './services/types';
+
+const IS_DEV = Boolean(import.meta.env.DEV);
+const SEED_TEST_DATA =
+  IS_DEV && String(import.meta.env.VITE_SEED_TEST_DATA || '').toLowerCase() === 'true';
+const CLEAR_SEED_DATA =
+  IS_DEV && String(import.meta.env.VITE_CLEAR_SEED_DATA || '').toLowerCase() === 'true';
+const AUTO_ANALYZE =
+  IS_DEV && String(import.meta.env.VITE_AUTO_ANALYZE || '').toLowerCase() === 'true';
+const SEED_PREFIX = 'seed-ecopulse';
+const SEED_VEHICLES: VehicleType[] = ['Car', 'Bus', 'Train', 'Bike', 'Walking'];
+const SEED_FACTORS: Record<VehicleType, number> = {
+  Car: 0.19,
+  Bus: 0.015,
+  Train: 0.008,
+  Bike: 0,
+  Walking: 0,
+  Custom: 0.19
+};
+const SEED_DISTANCES = [3.8, 5.4, 7.2, 9.6, 12.3, 4.5, 6.8, 8.1];
+const MONTHS = [
+  'January',
+  'February',
+  'March',
+  'April',
+  'May',
+  'June',
+  'July',
+  'August',
+  'September',
+  'October',
+  'November',
+  'December'
+];
+
+const buildSeedTrips = (seedTag: string, days: number = 20): Trip[] => {
+  const today = new Date();
+  const trips: Trip[] = [];
+  for (let i = 0; i < days; i += 1) {
+    const offset = days - 1 - i;
+    const tripDate = new Date(
+      Date.UTC(
+        today.getUTCFullYear(),
+        today.getUTCMonth(),
+        today.getUTCDate() - offset,
+        12,
+        0,
+        0
+      )
+    );
+    const vehicle = SEED_VEHICLES[i % SEED_VEHICLES.length];
+    const distance = SEED_DISTANCES[i % SEED_DISTANCES.length];
+    const factor = SEED_FACTORS[vehicle] ?? 0.1;
+    const co2 = Number((distance * factor).toFixed(3));
+    trips.push({
+      id: `${seedTag}-trip-${i + 1}`,
+      vehicle,
+      distance,
+      date: tripDate.toISOString(),
+      co2
+    });
+  }
+  return trips;
+};
+
+const buildSeedBills = (seedTag: string): UtilityBill[] => {
+  const base = new Date();
+  const bills: UtilityBill[] = [];
+  for (let offset = 0; offset < 2; offset += 1) {
+    const billDate = new Date(
+      Date.UTC(base.getUTCFullYear(), base.getUTCMonth() - offset, 5, 12, 0, 0)
+    );
+    const monthIndex = billDate.getUTCMonth();
+    const year = billDate.getUTCFullYear();
+    const units = offset === 0 ? 220 : 260;
+    const co2 = Number((units * 0.45).toFixed(2));
+    bills.push({
+      id: `${seedTag}-bill-${year}-${monthIndex + 1}`,
+      month: MONTHS[monthIndex],
+      year,
+      units,
+      co2,
+      date: billDate.toISOString()
+    });
+  }
+  return bills;
+};
 
 function App() {
   const [currentUser, setCurrentUser] = useState<{ id: string; username: string } | null>(null);
@@ -32,6 +119,168 @@ function App() {
   });
   const [availableVehicles, setAvailableVehicles] = useState<VehicleType[]>([]);
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
+  const analysisInFlightRef = useRef(false);
+
+  const applySeedData = async (userId: string, baseTrips: Trip[], baseBills: UtilityBill[]) => {
+    const seedTag = `${SEED_PREFIX}-${userId}`;
+    const seedKey = `ecopulse_seeded_${userId}`;
+    const isSeededTrip = (trip: Trip) => trip.id.startsWith(seedTag);
+    const isSeededBill = (bill: UtilityBill) => bill.id.startsWith(seedTag);
+    const seededTrips = baseTrips.filter(isSeededTrip);
+    const seededBills = baseBills.filter(isSeededBill);
+
+    if (CLEAR_SEED_DATA) {
+      await Promise.all(
+        seededTrips.map((trip) =>
+          cloud.deleteTrip(userId, trip.id).catch((error) =>
+            console.warn('Failed to delete seeded trip:', error)
+          )
+        )
+      );
+      await Promise.all(
+        seededBills.map((bill) =>
+          cloud.deleteBill(userId, bill.id).catch((error) =>
+            console.warn('Failed to delete seeded bill:', error)
+          )
+        )
+      );
+      localStorage.removeItem(seedKey);
+      return {
+        trips: baseTrips.filter((trip) => !isSeededTrip(trip)),
+        bills: baseBills.filter((bill) => !isSeededBill(bill))
+      };
+    }
+
+    if (!SEED_TEST_DATA) {
+      return { trips: baseTrips, bills: baseBills };
+    }
+
+    if (localStorage.getItem(seedKey)) {
+      return { trips: baseTrips, bills: baseBills };
+    }
+
+    if (baseTrips.length > 0 || baseBills.length > 0) {
+      return { trips: baseTrips, bills: baseBills };
+    }
+
+    const seedTrips = buildSeedTrips(seedTag);
+    const seedBills = buildSeedBills(seedTag);
+
+    localStorage.setItem(seedKey, 'in_progress');
+
+    try {
+      await Promise.all(seedTrips.map((trip) => cloud.insertTrip(userId, trip)));
+      await Promise.all(seedBills.map((bill) => cloud.insertBill(userId, bill)));
+      localStorage.setItem(seedKey, 'true');
+      return { trips: seedTrips, bills: seedBills };
+    } catch (error) {
+      localStorage.removeItem(seedKey);
+      console.warn('Failed to seed test data:', error);
+      return { trips: baseTrips, bills: baseBills };
+    }
+  };
+
+  const runAnalysis = async ({
+    tripsOverride,
+    billsOverride,
+    activateTab = false,
+    runMl = false,
+    useRemoteRecommendations = false
+  }: {
+    tripsOverride?: Trip[];
+    billsOverride?: UtilityBill[];
+    activateTab?: boolean;
+    runMl?: boolean;
+    useRemoteRecommendations?: boolean;
+  } = {}) => {
+    if (analysisInFlightRef.current && !activateTab) return false;
+    analysisInFlightRef.current = true;
+
+    const analysisTrips = tripsOverride ?? trips;
+    const analysisBills = billsOverride ?? bills;
+
+    if (activateTab) {
+      setActiveTab('ai');
+    }
+
+    setLoadingInsight(true);
+
+    try {
+      const localInsight = await getAIAnalytics(analysisTrips, analysisBills, undefined, {
+        skipRemote: true
+      });
+      setInsight(localInsight);
+
+      let overrides: { forecast7Day?: number; clusterLabel?: string; method?: string } | undefined;
+
+      if (runMl && currentUser && mlBackend.isEnabled()) {
+        try {
+          const tripSpanDays = getTripSpanDays(analysisTrips);
+          const canTrain = tripSpanDays >= 14;
+          const canCluster = analysisTrips.length >= 10;
+
+          await mlBackend.syncAll(currentUser.id, analysisTrips, analysisBills);
+
+          let prediction: any;
+          let clustering: any;
+
+          if (canTrain) {
+            await mlBackend.train(currentUser.id);
+            prediction = await mlBackend.predict(currentUser.id);
+          }
+
+          if (canCluster) {
+            clustering = await mlBackend.cluster();
+          }
+
+          const clusterMatch = clustering?.clusters?.find(
+            (entry: any) => entry.user_id === currentUser.id
+          );
+
+          if (prediction?.forecast_7_day || clusterMatch?.cluster_label) {
+            overrides = {
+              forecast7Day: prediction?.forecast_7_day,
+              clusterLabel: clusterMatch?.cluster_label,
+              method: prediction?.forecast_7_day ? 'Random Forest' : undefined
+            };
+          }
+        } catch (error) {
+          console.warn('ML backend analytics failed, using local heuristics:', error);
+        }
+      }
+
+      if (overrides || useRemoteRecommendations) {
+        const refreshedInsight = await getAIAnalytics(analysisTrips, analysisBills, overrides, {
+          skipRemote: !useRemoteRecommendations
+        });
+        setInsight(refreshedInsight);
+      }
+    } catch (error) {
+      console.error('Error getting AI analytics:', error);
+    } finally {
+      setLoadingInsight(false);
+      analysisInFlightRef.current = false;
+    }
+
+    return true;
+  };
+
+  const getTripSpanDays = (items: Trip[]) => {
+    if (items.length === 0) return 0;
+    let min = Number.POSITIVE_INFINITY;
+    let max = Number.NEGATIVE_INFINITY;
+    for (const trip of items) {
+      const day = (trip.date || '').split('T')[0];
+      const [year, month, date] = day.split('-').map(Number);
+      if (!year || !month || !date) continue;
+      const ts = Date.UTC(year, month - 1, date);
+      if (ts < min) min = ts;
+      if (ts > max) max = ts;
+    }
+    if (!Number.isFinite(min) || !Number.isFinite(max)) return 0;
+    const dayMs = 24 * 60 * 60 * 1000;
+    return Math.floor((max - min) / dayMs) + 1;
+  };
 
   const refreshLeaderboard = async (userId: string) => {
     try {
@@ -68,13 +317,24 @@ function App() {
     const load = async () => {
       try {
         const data = await cloud.fetchUserData(currentUser.id);
-        setTrips(data.trips);
-        setBills(data.bills);
+        const seeded = (SEED_TEST_DATA || CLEAR_SEED_DATA)
+          ? await applySeedData(currentUser.id, data.trips, data.bills)
+          : { trips: data.trips, bills: data.bills };
+        setTrips(seeded.trips);
+        setBills(seeded.bills);
         setUserProfile({
           ...data.profile,
           customVehicles: data.customVehicles
         });
         setAvailableVehicles(data.profile.availableVehicles || ['Car', 'Bike', 'Bus', 'Train', 'Walking']);
+        if (AUTO_ANALYZE) {
+          await runAnalysis({
+            tripsOverride: seeded.trips,
+            billsOverride: seeded.bills,
+            runMl: true,
+            useRemoteRecommendations: true
+          });
+        }
         await refreshLeaderboard(currentUser.id);
       } catch (error) {
         console.error('Failed to load user data:', error);
@@ -258,6 +518,9 @@ function App() {
       const nextPoints = userProfile.points + 10;
       cloud.saveProfile(currentUser.id, { points: nextPoints }).catch((error) => console.error('Failed to save points:', error));
       refreshLeaderboard(currentUser.id).catch(() => undefined);
+      mlBackend.syncTrip(currentUser.id, trip).catch((error) =>
+        console.warn('ML backend trip sync failed:', error)
+      );
     }
   };
 
@@ -291,6 +554,9 @@ function App() {
       const nextPoints = userProfile.points + 20;
       cloud.saveProfile(currentUser.id, { points: nextPoints }).catch((error) => console.error('Failed to save points:', error));
       refreshLeaderboard(currentUser.id).catch(() => undefined);
+      mlBackend.syncBill(currentUser.id, newBill).catch((error) =>
+        console.warn('ML backend bill sync failed:', error)
+      );
     }
   };
 
@@ -302,12 +568,12 @@ function App() {
   };
 
   const handleFinishDay = async () => {
-    setLoadingInsight(true);
-    setActiveTab('ai');
-    
     try {
-      const result = await getAIAnalytics(trips, bills);
-      setInsight(result);
+      await runAnalysis({
+        activateTab: true,
+        runMl: true,
+        useRemoteRecommendations: true
+      });
       
       // Update streak
       const today = new Date().toISOString().split('T')[0];
@@ -329,8 +595,6 @@ function App() {
       }
     } catch (error) {
       console.error("Error getting AI analytics:", error);
-    } finally {
-      setLoadingInsight(false);
     }
   };
 
@@ -342,6 +606,13 @@ function App() {
   };
 
   const handleAddCustomVehicle = (vehicle: CustomVehicle) => {
+    const existing = (userProfile.customVehicles || []).some(
+      (v) => v.name.trim().toLowerCase() === vehicle.name.trim().toLowerCase()
+    );
+    if (existing) {
+      console.warn(`Custom vehicle '${vehicle.name}' already exists. Skipping insert.`);
+      return;
+    }
     if (currentUser) {
       cloud.insertCustomVehicle(currentUser.id, vehicle).catch((error) => console.error('Failed to save vehicle:', error));
       setUserProfile(prev => ({

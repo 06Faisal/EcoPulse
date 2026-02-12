@@ -26,12 +26,24 @@ def init_db():
         )
         cur.execute(
             """
+            CREATE UNIQUE INDEX IF NOT EXISTS trips_unique_entry
+            ON trips (user_id, date, distance, co2, vehicle)
+            """
+        )
+        cur.execute(
+            """
             CREATE TABLE IF NOT EXISTS bills (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 user_id TEXT NOT NULL,
                 date TEXT NOT NULL,
                 units REAL NOT NULL
             )
+            """
+        )
+        cur.execute(
+            """
+            CREATE UNIQUE INDEX IF NOT EXISTS bills_unique_entry
+            ON bills (user_id, date, units)
             """
         )
         conn.commit()
@@ -41,7 +53,7 @@ def insert_trip(payload):
     with get_connection() as conn:
         cur = conn.cursor()
         cur.execute(
-            "INSERT INTO trips (user_id, date, distance, co2, vehicle) VALUES (?, ?, ?, ?, ?)",
+            "INSERT OR IGNORE INTO trips (user_id, date, distance, co2, vehicle) VALUES (?, ?, ?, ?, ?)",
             (payload.user_id, payload.date, payload.distance, payload.co2, payload.vehicle),
         )
         conn.commit()
@@ -51,7 +63,7 @@ def insert_bill(payload):
     with get_connection() as conn:
         cur = conn.cursor()
         cur.execute(
-            "INSERT INTO bills (user_id, date, units) VALUES (?, ?, ?)",
+            "INSERT OR IGNORE INTO bills (user_id, date, units) VALUES (?, ?, ?)",
             (payload.user_id, payload.date, payload.units),
         )
         conn.commit()

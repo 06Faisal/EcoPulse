@@ -9,6 +9,16 @@ if (!apiKey) {
 
 const ai = new GoogleGenAI({ apiKey });
 
+type MlOverrides = {
+  forecast7Day?: number;
+  clusterLabel?: string;
+  method?: string;
+};
+
+type AnalyticsOptions = {
+  skipRemote?: boolean;
+};
+
 function calculateEWMA(data: number[], alpha: number = 0.3): number {
   if (data.length === 0) return 0;
   let ewma = data[0];
@@ -218,7 +228,9 @@ CRITICAL: Factor MUST be 0.01-0.50 (NO negatives). Return JSON with factor, conf
 
 export const getAIAnalytics = async (
   trips: Trip[],
-  bills: UtilityBill[]
+  bills: UtilityBill[],
+  overrides?: MlOverrides,
+  options?: AnalyticsOptions
 ): Promise<AIInsight> => {
   const now = new Date();
   const last30Days = trips.filter((t) => {
@@ -258,20 +270,53 @@ export const getAIAnalytics = async (
   }
 
   const energyForecast = dailyEnergy * 7;
-  const totalForecast = travelForecast + energyForecast;
+  const totalForecast = overrides?.forecast7Day ?? (travelForecast + energyForecast);
   const optimizedWeekly = totalForecast * 0.8;
 
   const avgDailyTravel = travelForecast / 7;
   const avgDailyEnergy = dailyEnergy;
   const totalDaily = avgDailyTravel + avgDailyEnergy;
 
-  const cluster = assignCluster(avgDailyTravel, avgDailyEnergy);
+  const cluster = overrides?.clusterLabel || assignCluster(avgDailyTravel, avgDailyEnergy);
   const patterns = minePatterns(trips);
   const anomalies = detectAnomalies(avgDailyTravel, avgDailyEnergy, trend.direction);
 
-  let recommendations: string[] = [];
+  const buildFallbackRecommendations = () => {
+    const mostUsedVehicle =
+      Object.entries(patterns.vehicleFrequency)
+        .sort((a, b) => b[1] - a[1])[0]?.[0] || "vehicle";
 
-  if (apiKey) {
+    return [
+      `ML analysis: You're in the '${cluster}' cluster at ${totalDaily.toFixed(
+        1
+      )} kg/day. ${
+        totalDaily < 5.5
+          ? "Great work staying below the regional average."
+          : "Target: Get below the 5.5 kg/day regional average."
+      }`,
+      patterns.peakDays.length > 0
+        ? `Peak travel on ${patterns.peakDays.join(
+            " & "
+          )} using ${mostUsedVehicle}. Focus optimizations on these high-impact days.`
+        : `Log more trips (${trips.length}/10) to unlock pattern-based insights and personalized recommendations.`,
+      anomalies.includes("energy_dominates")
+        ? `Energy (${avgDailyEnergy.toFixed(
+            1
+          )} kg) dominates travel (${avgDailyTravel.toFixed(
+            1
+          )} kg). A smart thermostat could reduce this by 15-20%.`
+        : trend.direction === "increasing"
+        ? "Emissions are trending up. Lock in one eco-friendly change this week to reverse the trend."
+        : trend.direction === "decreasing"
+        ? "Great progress. Keep the momentum going."
+        : "Stable pattern. Set a 10% reduction goal.",
+    ];
+  };
+
+  let recommendations: string[] = [];
+  const allowRemote = Boolean(apiKey) && !options?.skipRemote;
+
+  if (allowRemote) {
     try {
       const mostUsedVehicle =
         Object.entries(patterns.vehicleFrequency)
@@ -343,38 +388,9 @@ Return JSON with a "recommendations" array of exactly 3 strings.`;
       }
     } catch (error) {
       console.warn("AI recommendations failed, using fallback");
-
-      const mostUsedVehicle =
-        Object.entries(patterns.vehicleFrequency)
-          .sort((a, b) => b[1] - a[1])[0]?.[0] || "vehicle";
-
-      recommendations = [
-        `ML analysis: You're in the '${cluster}' cluster at ${totalDaily.toFixed(
-          1
-        )} kg/day. ${
-          totalDaily < 5.5
-            ? "Great work staying below the regional average."
-            : "Target: Get below the 5.5 kg/day regional average."
-        }`,
-        patterns.peakDays.length > 0
-          ? `Peak travel on ${patterns.peakDays.join(
-              " & "
-            )} using ${mostUsedVehicle}. Focus optimizations on these high-impact days.`
-          : `Log more trips (${trips.length}/10) to unlock pattern-based insights and personalized recommendations.`,
-        anomalies.includes("energy_dominates")
-          ? `Energy (${avgDailyEnergy.toFixed(
-              1
-            )} kg) dominates travel (${avgDailyTravel.toFixed(
-              1
-            )} kg). A smart thermostat could reduce this by 15-20%.`
-          : trend.direction === "increasing"
-          ? "Emissions are trending up. Lock in one eco-friendly change this week to reverse the trend."
-          : trend.direction === "decreasing"
-          ? "Great progress. Keep the momentum going."
-          : "Stable pattern. Set a 10% reduction goal.",
-      ];
+      recommendations = buildFallbackRecommendations();
     }
-  } else {
+  } else if (!apiKey && !options?.skipRemote) {
     recommendations = [
       `You're in the '${cluster}' cluster at ${totalDaily.toFixed(
         1
@@ -382,6 +398,8 @@ Return JSON with a "recommendations" array of exactly 3 strings.`;
       `Trips logged: ${trips.length}. Pattern analysis is strongest at 10+ trips.`,
       "Enable a Gemini API key for personalized recommendations based on your data.",
     ];
+  } else {
+    recommendations = buildFallbackRecommendations();
   }
 
   const uniqueDays = timeSeriesData.length;
@@ -426,11 +444,14 @@ Return JSON with a "recommendations" array of exactly 3 strings.`;
 
   const mlConfidence = Math.round(Math.min(95, Math.max(5, confidenceScore)));
 
+  const resolvedMethod =
+    overrides?.method || (overrides?.forecast7Day != null ? 'Random Forest' : method);
+
   return {
     forecast: Number(totalForecast.toFixed(1)),
     optimizedForecast: Number(optimizedWeekly.toFixed(1)),
     risk: totalForecast < 15 ? "Low" : totalForecast < 30 ? "Moderate" : "High",
-    message: `ML Analysis (${method}): You're in '${cluster}'. ${
+    message: `ML Analysis (${resolvedMethod}): You're in '${cluster}'. ${
       trend.direction === "increasing"
         ? "Emissions are trending up."
         : trend.direction === "decreasing"
