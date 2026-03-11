@@ -459,7 +459,7 @@ See accompanying PNG files for detailed visualizations:
     
     # Save report
     report_path = output_dir / 'evaluation_report.md'
-    report_path.write_text(report)
+    report_path.write_text(report, encoding="utf-8")
     print(f"Saved: {report_path}")
     
     return report

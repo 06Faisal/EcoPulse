@@ -1,10 +1,12 @@
 import React from 'react';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, BarChart, Bar, XAxis, YAxis } from 'recharts';
-import { Trip } from '../services/types';
+import { Trip, UtilityBill } from '../services/types';
+import CarbonOffset from './CarbonOffset';
 
 interface EmissionsProps {
   trips: Trip[];
   electricity: number;
+  bills?: UtilityBill[];
   onDeleteTripsByVehicle?: (vehicle: string) => void;
 }
 
@@ -88,7 +90,7 @@ const renderPieLabel = ({ cx, cy, innerRadius, outerRadius, percent, startAngle,
   );
 };
 
-const Emissions: React.FC<EmissionsProps> = ({ trips, electricity, onDeleteTripsByVehicle }) => {
+const Emissions: React.FC<EmissionsProps> = ({ trips, electricity, bills = [], onDeleteTripsByVehicle }) => {
   const todayStr = new Date().toISOString().split('T')[0];
   const todayTrips = trips.filter(t => t.date.split('T')[0] === todayStr);
   const todayTripCO2 = Number(todayTrips.reduce((acc, t) => acc + (t.co2 || 0), 0)) || 0;
@@ -104,7 +106,7 @@ const Emissions: React.FC<EmissionsProps> = ({ trips, electricity, onDeleteTrips
   const pieData = Object.entries(vehicleStats)
     .map(([name, value]) => ({ name, value: Number(value) }))
     .sort((a, b) => b.value - a.value);
-  
+
   // Total stats
   const totalTravelCO2 = trips.reduce((acc, t) => acc + Number(t.co2), 0);
   const totalDistance = trips.reduce((acc, t) => acc + Number(t.distance), 0);
@@ -120,14 +122,14 @@ const Emissions: React.FC<EmissionsProps> = ({ trips, electricity, onDeleteTrips
             <span className="text-sm font-bold text-slate-500 dark:text-slate-400">kg CO2</span>
           </div>
           <div className="mt-6 grid grid-cols-2 gap-4">
-             <div className="p-4 bg-slate-100 dark:bg-white/5 rounded-2xl border border-slate-200 dark:border-white/5">
-                <p className="text-[11px] font-black text-slate-400 dark:text-slate-400 uppercase">Distance Covered</p>
-                <p className="text-xl font-black text-slate-900 dark:text-white">{totalDistance.toFixed(0)} <span className="text-[10px] text-slate-500 dark:text-slate-400">km</span></p>
-             </div>
-             <div className="p-4 bg-slate-100 dark:bg-white/5 rounded-2xl border border-slate-200 dark:border-white/5">
-                <p className="text-[11px] font-black text-slate-400 dark:text-slate-400 uppercase">Trip Count</p>
-                <p className="text-xl font-black text-slate-900 dark:text-white">{trips.length} <span className="text-[10px] text-slate-500 dark:text-slate-400">logs</span></p>
-             </div>
+            <div className="p-4 bg-slate-100 dark:bg-white/5 rounded-2xl border border-slate-200 dark:border-white/5">
+              <p className="text-[11px] font-black text-slate-400 dark:text-slate-400 uppercase">Distance Covered</p>
+              <p className="text-xl font-black text-slate-900 dark:text-white">{totalDistance.toFixed(0)} <span className="text-[10px] text-slate-500 dark:text-slate-400">km</span></p>
+            </div>
+            <div className="p-4 bg-slate-100 dark:bg-white/5 rounded-2xl border border-slate-200 dark:border-white/5">
+              <p className="text-[11px] font-black text-slate-400 dark:text-slate-400 uppercase">Trip Count</p>
+              <p className="text-xl font-black text-slate-900 dark:text-white">{trips.length} <span className="text-[10px] text-slate-500 dark:text-slate-400">logs</span></p>
+            </div>
           </div>
         </div>
 
@@ -162,19 +164,19 @@ const Emissions: React.FC<EmissionsProps> = ({ trips, electricity, onDeleteTrips
                 </div>
               </div>
             </div>
-            
+
             {/* Legend with vehicle colors and delete option */}
             <div className="mt-6 space-y-2">
               <h4 className="text-[11px] font-black text-slate-400 dark:text-slate-400 uppercase tracking-[0.16em] mb-3">Vehicle Breakdown</h4>
               <div className="grid grid-cols-1 gap-2">
                 {pieData.map((entry, index) => (
-                  <div 
+                  <div
                     key={entry.name}
                     className="flex items-center justify-between p-3 bg-slate-100 dark:bg-white/5 rounded-xl border border-slate-200 dark:border-white/5 group hover:bg-slate-200 dark:hover:bg-white/10 transition-all"
                   >
                     <div className="flex items-center gap-3 flex-1">
-                      <div 
-                        className="w-4 h-4 rounded-full flex-shrink-0" 
+                      <div
+                        className="w-4 h-4 rounded-full flex-shrink-0"
                         style={{ backgroundColor: getColor(entry.name, index) }}
                       ></div>
                       <div className="flex-1 min-w-0">
@@ -216,22 +218,22 @@ const Emissions: React.FC<EmissionsProps> = ({ trips, electricity, onDeleteTrips
             <h3 className="text-[11px] font-black text-slate-800 dark:text-white uppercase tracking-[0.16em]">Fixed Monthly Energy</h3>
           </div>
           <div className="text-right">
-             <div className="text-[10px] font-black text-blue-500">{(monthlyEnergyCO2/30).toFixed(2)} kg/day</div>
+            <div className="text-[10px] font-black text-blue-500">{(monthlyEnergyCO2 / 30).toFixed(2)} kg/day</div>
           </div>
         </div>
-        
+
         <div className="p-5 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-100 dark:border-white/5 relative overflow-hidden">
           <div className="flex justify-between items-end relative z-10">
             <div>
-               <p className="text-[11px] font-bold text-slate-400 uppercase mb-1">Grid Consumption</p>
-               <div className="text-3xl font-black text-slate-800 dark:text-white">{Number(electricity) || 0} <span className="text-xs font-bold text-slate-400">kWh</span></div>
+              <p className="text-[11px] font-bold text-slate-400 uppercase mb-1">Grid Consumption</p>
+              <div className="text-3xl font-black text-slate-800 dark:text-white">{Number(electricity) || 0} <span className="text-xs font-bold text-slate-400">kWh</span></div>
             </div>
             <div className="text-right">
-               <p className="text-[11px] font-bold text-slate-400 uppercase mb-1">Monthly CO2</p>
-               <div className="text-3xl font-black text-blue-500">{monthlyEnergyCO2.toFixed(1)} <span className="text-xs font-bold text-blue-400/60">kg</span></div>
+              <p className="text-[11px] font-bold text-slate-400 uppercase mb-1">Monthly CO2</p>
+              <div className="text-3xl font-black text-blue-500">{monthlyEnergyCO2.toFixed(1)} <span className="text-xs font-bold text-blue-400/60">kg</span></div>
             </div>
           </div>
-          <div className="absolute bottom-0 left-0 h-1 bg-blue-500 transition-all duration-1000" style={{width: electricity > 0 ? '100%' : '0%'}}></div>
+          <div className="absolute bottom-0 left-0 h-1 bg-blue-500 transition-all duration-1000" style={{ width: electricity > 0 ? '100%' : '0%' }}></div>
         </div>
       </div>
 
@@ -239,9 +241,9 @@ const Emissions: React.FC<EmissionsProps> = ({ trips, electricity, onDeleteTrips
       <div className="space-y-4">
         <h3 className="text-[11px] font-black text-slate-400 dark:text-slate-400 uppercase tracking-[0.16em] ml-1">Modal Distribution</h3>
         <div className="space-y-3">
-          {Object.entries(vehicleStats).sort((a,b) => Number(b[1]) - Number(a[1])).map(([vehicle, co2], idx) => (
+          {Object.entries(vehicleStats).sort((a, b) => Number(b[1]) - Number(a[1])).map(([vehicle, co2], idx) => (
             <div key={vehicle} className="glass p-4 rounded-2xl flex items-center gap-4 bg-white dark:bg-slate-900/40 border-white/5">
-              <div className="w-10 h-10 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-500 font-black text-xs">#{idx+1}</div>
+              <div className="w-10 h-10 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-500 font-black text-xs">#{idx + 1}</div>
               <div className="flex-1">
                 <div className="flex justify-between items-center mb-1.5">
                   <span className="text-sm font-black text-slate-800 dark:text-white">{vehicle}</span>
@@ -250,13 +252,16 @@ const Emissions: React.FC<EmissionsProps> = ({ trips, electricity, onDeleteTrips
                 </div>
                 <div className="h-1.5 w-full bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
                   {/* Ensure no division by zero and cast to number */}
-                  <div className="h-full bg-emerald-500" style={{width: `${totalTravelCO2 > 0 ? (Number(co2) / totalTravelCO2) * 100 : 0}%`}}></div>
+                  <div className="h-full bg-emerald-500" style={{ width: `${totalTravelCO2 > 0 ? (Number(co2) / totalTravelCO2) * 100 : 0}%` }}></div>
                 </div>
               </div>
             </div>
           ))}
         </div>
       </div>
+
+      {/* Carbon Offset Banner */}
+      <CarbonOffset trips={trips} bills={bills} />
     </div>
   );
 };

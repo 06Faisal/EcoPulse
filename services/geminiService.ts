@@ -1,5 +1,5 @@
 import { GoogleGenAI, Type } from "@google/genai";
-import { Trip, AIInsight, UtilityBill } from "./types";
+import { Trip, AIInsight, UtilityBill, TransportSuggestion } from "./types";
 
 const apiKey = import.meta.env.VITE_GEMINI_API_KEY || "";
 
@@ -8,6 +8,41 @@ if (!apiKey) {
 }
 
 const ai = new GoogleGenAI({ apiKey });
+
+// ─── Prediction Cache (in-memory + localStorage) ────────────────────────────
+
+const CACHE_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
+const LOCATION_CACHE_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
+const RECOMMENDATION_CACHE_TTL_MS = 6 * 60 * 60 * 1000; // 6 hours
+
+function cacheKey(parts: string[]): string {
+  return `ecopulse_cache_${parts.map(p => (p || "").toLowerCase().trim()).join("_")}`;
+}
+
+function readCache<T>(key: string, ttlMs: number): T | null {
+  try {
+    const raw = localStorage.getItem(key);
+    if (!raw) return null;
+    const { ts, value } = JSON.parse(raw);
+    if (Date.now() - ts > ttlMs) {
+      localStorage.removeItem(key);
+      return null;
+    }
+    return value as T;
+  } catch {
+    return null;
+  }
+}
+
+function writeCache<T>(key: string, value: T): void {
+  try {
+    localStorage.setItem(key, JSON.stringify({ ts: Date.now(), value }));
+  } catch {
+    // localStorage might be full — silently ignore
+  }
+}
+
+// ─── ML / Statistical Helpers ────────────────────────────────────────────────
 
 type MlOverrides = {
   forecast7Day?: number;
@@ -107,7 +142,7 @@ function assignCluster(avgTravel: number, avgEnergy: number): string {
   for (const cluster of clusters) {
     const distance = Math.sqrt(
       Math.pow(avgTravel - cluster.avgTravel, 2) +
-        Math.pow(avgEnergy - cluster.avgEnergy, 2)
+      Math.pow(avgEnergy - cluster.avgEnergy, 2)
     );
 
     if (distance < minDistance) {
@@ -166,18 +201,27 @@ function detectAnomalies(
   return anomalies;
 }
 
+// ─── Emission Factor Prediction (cached) ─────────────────────────────────────
+
 export const predictEmissionFactor = async (
   vehicleName: string,
   vehicleType?: string,
   fuelType?: string
 ): Promise<{ factor: number; confidence: number; category: string }> => {
+
+  // Check cache first to avoid API quota burn
+  const key = cacheKey(["factor", vehicleName, vehicleType || "", fuelType || ""]);
+  const cached = readCache<{ factor: number; confidence: number; category: string }>(key, CACHE_TTL_MS);
+  if (cached) {
+    return cached;
+  }
+
   if (!apiKey) {
     return { factor: 0.15, confidence: 30, category: "gas" };
   }
 
-  const prompt = `Predict CO2 emission factor (kg CO2/km) for: ${vehicleName}, Type: ${
-    vehicleType || "unknown"
-  }, Fuel: ${fuelType || "unknown"}.
+  const prompt = `Predict CO2 emission factor (kg CO2/km) for: ${vehicleName}, Type: ${vehicleType || "unknown"
+    }, Fuel: ${fuelType || "unknown"}.
 
 Reference ranges:
 - Electric: 0.04-0.08
@@ -189,7 +233,7 @@ CRITICAL: Factor MUST be 0.01-0.50 (NO negatives). Return JSON with factor, conf
 
   try {
     const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash",
+      model: "gemini-2.0-flash",   // cheaper model for emission prediction
       contents: prompt,
       config: {
         responseMimeType: "application/json",
@@ -215,16 +259,22 @@ CRITICAL: Factor MUST be 0.01-0.50 (NO negatives). Return JSON with factor, conf
       validFactor = 0.15;
     }
 
-    return {
+    const output = {
       factor: Number(validFactor.toFixed(3)),
       confidence: Math.round(Math.max(0, Math.min(100, result.confidence || 50))),
       category: result.category || "gas",
     };
+
+    // Cache the result
+    writeCache(key, output);
+    return output;
   } catch (error) {
     console.error("Prediction error:", error);
     return { factor: 0.15, confidence: 30, category: "gas" };
   }
 };
+
+// ─── AI Analytics ─────────────────────────────────────────────────────────────
 
 export const getAIAnalytics = async (
   trips: Trip[],
@@ -266,7 +316,7 @@ export const getAIAnalytics = async (
   } else {
     const trendAdjustment = trend.slope * 7;
     travelForecast = (ewmaTravel + trendAdjustment) * 7;
-    method = "EWMA + Trend Analysis";
+    method = "Smart Trend Forecast";
   }
 
   const energyForecast = dailyEnergy * 7;
@@ -287,36 +337,39 @@ export const getAIAnalytics = async (
         .sort((a, b) => b[1] - a[1])[0]?.[0] || "vehicle";
 
     return [
-      `ML analysis: You're in the '${cluster}' cluster at ${totalDaily.toFixed(
-        1
-      )} kg/day. ${
-        totalDaily < 5.5
-          ? "Great work staying below the regional average."
-          : "Target: Get below the 5.5 kg/day regional average."
+      `Your daily footprint is ${totalDaily.toFixed(1)} kg CO2. ${totalDaily < 5.5
+        ? "Great work — you're below the regional average of 5.5 kg/day!"
+        : "Try to get below the regional average of 5.5 kg/day."
       }`,
       patterns.peakDays.length > 0
         ? `Peak travel on ${patterns.peakDays.join(
-            " & "
-          )} using ${mostUsedVehicle}. Focus optimizations on these high-impact days.`
+          " & "
+        )} using ${mostUsedVehicle}. Focus optimizations on these high-impact days.`
         : `Log more trips (${trips.length}/10) to unlock pattern-based insights and personalized recommendations.`,
       anomalies.includes("energy_dominates")
         ? `Energy (${avgDailyEnergy.toFixed(
-            1
-          )} kg) dominates travel (${avgDailyTravel.toFixed(
-            1
-          )} kg). A smart thermostat could reduce this by 15-20%.`
+          1
+        )} kg) dominates travel (${avgDailyTravel.toFixed(
+          1
+        )} kg). A smart thermostat could reduce this by 15-20%.`
         : trend.direction === "increasing"
-        ? "Emissions are trending up. Lock in one eco-friendly change this week to reverse the trend."
-        : trend.direction === "decreasing"
-        ? "Great progress. Keep the momentum going."
-        : "Stable pattern. Set a 10% reduction goal.",
+          ? "Emissions are trending up. Lock in one eco-friendly change this week to reverse the trend."
+          : trend.direction === "decreasing"
+            ? "Great progress. Keep the momentum going."
+            : "Stable pattern. Set a 10% reduction goal.",
     ];
   };
 
   let recommendations: string[] = [];
   const allowRemote = Boolean(apiKey) && !options?.skipRemote;
 
-  if (allowRemote) {
+  // Cache recommendations for 6h — same conditions shouldn't re-burn quota
+  const recCacheKey = cacheKey(['recs', cluster, trend.direction, String(Math.round(totalDaily * 2))]);
+  const cachedRecs = readCache<string[]>(recCacheKey, RECOMMENDATION_CACHE_TTL_MS);
+
+  if (cachedRecs) {
+    recommendations = cachedRecs;
+  } else if (allowRemote) {
     try {
       const mostUsedVehicle =
         Object.entries(patterns.vehicleFrequency)
@@ -383,11 +436,17 @@ Return JSON with a "recommendations" array of exactly 3 strings.`;
 
       if (aiResult.recommendations && aiResult.recommendations.length === 3) {
         recommendations = aiResult.recommendations;
+        writeCache(recCacheKey, recommendations);
       } else {
         throw new Error("Invalid AI response");
       }
-    } catch (error) {
-      console.warn("AI recommendations failed, using fallback");
+    } catch (error: any) {
+      const isQuota = error?.message?.includes('429') || error?.message?.includes('quota') || error?.message?.includes('RESOURCE_EXHAUSTED');
+      if (isQuota) {
+        console.warn('Gemini quota exhausted — using fallback recommendations');
+      } else {
+        console.warn("AI recommendations failed, using fallback");
+      }
       recommendations = buildFallbackRecommendations();
     }
   } else if (!apiKey && !options?.skipRemote) {
@@ -451,13 +510,12 @@ Return JSON with a "recommendations" array of exactly 3 strings.`;
     forecast: Number(totalForecast.toFixed(1)),
     optimizedForecast: Number(optimizedWeekly.toFixed(1)),
     risk: totalForecast < 15 ? "Low" : totalForecast < 30 ? "Moderate" : "High",
-    message: `ML Analysis (${resolvedMethod}): You're in '${cluster}'. ${
-      trend.direction === "increasing"
-        ? "Emissions are trending up."
-        : trend.direction === "decreasing"
-        ? "Emissions are trending down."
-        : "Emissions are stable."
-    }`,
+    message: `${trend.direction === "increasing"
+      ? "Your emissions are trending up — now's a great time to make a change."
+      : trend.direction === "decreasing"
+        ? "Great progress! Your emissions are trending down."
+        : "Your emissions are stable. Set a small reduction goal to keep improving."
+      }`,
     recommendations: recommendations.slice(0, 3),
     breakdown: {
       travel: Number(avgDailyTravel.toFixed(2)),
@@ -480,10 +538,10 @@ Return JSON with a "recommendations" array of exactly 3 strings.`;
       averageDailyDistance:
         trips.length > 0
           ? Number(
-              (
-                trips.reduce((sum, t) => sum + t.distance, 0) / trips.length
-              ).toFixed(1)
-            )
+            (
+              trips.reduce((sum, t) => sum + t.distance, 0) / trips.length
+            ).toFixed(1)
+          )
           : 0,
       mostUsedVehicle:
         Object.entries(patterns.vehicleFrequency || {})
@@ -493,6 +551,60 @@ Return JSON with a "recommendations" array of exactly 3 strings.`;
     mlConfidence: Math.round(mlConfidence),
   };
 };
+
+// ─── Odometer Image Scan ────────────────────────────────────────────────────────
+
+export const verifyOdometerImage = async (
+  base64Image: string
+): Promise<{
+  odometer: number;
+  confidence: number;
+  reasoning?: string;
+}> => {
+  if (!apiKey) {
+    return { odometer: 0, confidence: 0, reasoning: "API key required" };
+  }
+
+  try {
+    const response = await ai.models.generateContent({
+      model: "gemini-2.0-flash",
+      contents: {
+        parts: [
+          { inlineData: { mimeType: "image/jpeg", data: base64Image.split(",")[1] } },
+          {
+            text: "Extract the exact odometer reading (in km or miles) from this vehicle dashboard image. Return ONLY a valid JSON with 'odometer' (number), 'confidence' (0-100), and 'reasoning' (brief string). Try to avoid extracting trip distance, look for the main total mileage.",
+          },
+        ],
+      },
+      config: {
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: Type.OBJECT,
+          properties: {
+            odometer: { type: Type.NUMBER },
+            confidence: { type: Type.NUMBER },
+            reasoning: { type: Type.STRING },
+          },
+          required: ["odometer", "confidence"],
+        },
+      },
+    });
+
+    const result = JSON.parse(response.text || "{}");
+
+    // Ensure it's a valid positive number
+    if (result.odometer < 0 || isNaN(result.odometer)) {
+      result.odometer = 0;
+    }
+
+    return result;
+  } catch (error) {
+    console.error("Odometer scan error:", error);
+    return { odometer: 0, confidence: 0, reasoning: "Extraction failed" };
+  }
+};
+
+// ─── Bill Image Scan ──────────────────────────────────────────────────────────
 
 export const verifyBillImage = async (
   base64Image: string
@@ -508,12 +620,12 @@ export const verifyBillImage = async (
 
   try {
     const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash",
+      model: "gemini-2.0-flash",  // cheaper model OK for OCR
       contents: {
         parts: [
           { inlineData: { mimeType: "image/jpeg", data: base64Image.split(",")[1] } },
           {
-            text: "Extract kWh from this bill. Return JSON with units, confidence (0-100), isAnomalous (bool), reasoning.",
+            text: "Extract kWh from this electricity bill. Return JSON with units (number), confidence (0-100), isAnomalous (bool), reasoning (string).",
           },
         ],
       },
@@ -543,5 +655,191 @@ export const verifyBillImage = async (
   } catch (error) {
     console.error("Bill scan error:", error);
     return { units: 0, confidence: 0, isAnomalous: false };
+  }
+};
+
+// ─── Vehicle Plate Lookup (Gemini fallback only) ──────────────────────────────
+
+export interface VehicleLookupResult {
+  make: string;
+  model: string;
+  fuelType: string;
+  vehicleType: string;
+  year?: number;
+  vehicleAge?: number;
+  emissionNorm?: string;
+  bodyType?: string;
+  conditionHint?: string;
+  source: 'parivahan' | 'gemini' | 'error' | 'not_found';
+  error?: string;
+}
+
+/**
+ * Last-resort Gemini plate lookup. Prefer /api/vehicle-lookup (Parivahan backend).
+ * Only call this if the backend is unreachable for >30s.
+ */
+export const lookupVehicleByPlate = async (
+  regNumber: string
+): Promise<VehicleLookupResult> => {
+  if (!apiKey) {
+    return { make: '', model: '', fuelType: '', vehicleType: '', source: 'error', error: 'No Gemini API key configured.' };
+  }
+
+  const clean = regNumber.trim().toUpperCase().replace(/\s+/g, '');
+
+  // Check cache first
+  const key = cacheKey(["plate", clean]);
+  const cached = readCache<VehicleLookupResult>(key, 7 * 24 * 60 * 60 * 1000);
+  if (cached) return cached;
+
+  try {
+    const prompt = `You are an Indian vehicle registration expert.
+
+Given the Indian vehicle registration number: "${clean}"
+
+Analyze the registration number pattern and your knowledge of common Indian vehicles to infer:
+1. The most likely make (manufacturer), e.g. "Honda", "Maruti Suzuki", "Royal Enfield"
+2. The most likely model, e.g. "Activa 6G", "Swift", "Classic 350"
+3. Fuel type: one of "petrol", "diesel", "electric", "cng", "lpg", "hybrid"
+4. Vehicle type: one of "car", "motorcycle", "scooter", "bus", "truck", "auto"
+5. Approximate year of manufacture (if inferable from the series)
+
+The state code tells you the region (e.g. MH=Maharashtra, KA=Karnataka, DL=Delhi, TN=Tamil Nadu).
+Use your knowledge of popular vehicles in that region and the registration series to make your best inference.
+If you cannot confidently infer a field, use an empty string for text fields or null for year.
+
+Respond ONLY with a valid JSON object:
+{"make":"Honda","model":"Activa 6G","fuelType":"petrol","vehicleType":"scooter","year":2021}`;
+
+    const response = await ai.models.generateContent({
+      model: 'gemini-2.0-flash',
+      contents: prompt,
+      config: {
+        responseMimeType: 'application/json',
+        responseSchema: {
+          type: Type.OBJECT,
+          properties: {
+            make: { type: Type.STRING },
+            model: { type: Type.STRING },
+            fuelType: { type: Type.STRING },
+            vehicleType: { type: Type.STRING },
+            year: { type: Type.NUMBER, nullable: true }
+          },
+          required: ['make', 'model', 'fuelType', 'vehicleType']
+        }
+      }
+    });
+
+    const result = JSON.parse(response.text || '{}');
+    const year = result.year ?? undefined;
+    const vehicleAge = year ? new Date().getFullYear() - year : undefined;
+
+    const output: VehicleLookupResult = {
+      make: result.make || '',
+      model: result.model || '',
+      fuelType: result.fuelType || '',
+      vehicleType: result.vehicleType || '',
+      year,
+      vehicleAge,
+      conditionHint: vehicleAge !== undefined ? (vehicleAge <= 3 ? 'Good' : vehicleAge <= 7 ? 'Average' : 'Poor') : 'Average',
+      source: 'gemini'
+    };
+
+    writeCache(key, output);
+    return output;
+  } catch (error) {
+    console.error('Gemini plate lookup error:', error);
+    return { make: '', model: '', fuelType: '', vehicleType: '', source: 'error', error: 'Gemini lookup failed.' };
+  }
+};
+
+// ─── Location-Based Transport Suggestions ─────────────────────────────────────
+
+const FALLBACK_SUGGESTIONS: Record<string, TransportSuggestion[]> = {
+  default: [
+    { mode: "Metro / Suburban Rail", description: "Use city metro or local trains for long commutes", co2PerKm: 0.008, savingVsCarPct: 96, icon: "fa-train" },
+    { mode: "City Bus (BRT)", description: "Bus Rapid Transit or regular city buses", co2PerKm: 0.015, savingVsCarPct: 92, icon: "fa-bus" },
+    { mode: "Electric Auto-Rickshaw", description: "Zero-emission last-mile connectivity", co2PerKm: 0.03, savingVsCarPct: 84, icon: "fa-motorcycle" },
+    { mode: "Cycling", description: "Zero-emission for trips under 5 km", co2PerKm: 0, savingVsCarPct: 100, icon: "fa-bicycle" },
+    { mode: "Carpooling", description: "Share rides to split emissions per passenger", co2PerKm: 0.048, savingVsCarPct: 75, icon: "fa-car-side" },
+  ],
+};
+
+export const getLocationBasedSuggestions = async (
+  city: string,
+  currentVehicle: string
+): Promise<TransportSuggestion[]> => {
+  if (!city) return FALLBACK_SUGGESTIONS.default;
+
+  const key = cacheKey(["location_suggestions", city]);
+  const cached = readCache<TransportSuggestion[]>(key, LOCATION_CACHE_TTL_MS);
+  if (cached) return cached;
+
+  if (!apiKey) {
+    return FALLBACK_SUGGESTIONS.default;
+  }
+
+  try {
+    const prompt = `You are a sustainable transport expert for Indian cities.
+
+The user is in "${city}" and currently uses "${currentVehicle}" as their primary transport.
+
+List up to 5 practical, lower-emission transport alternatives specifically available in ${city}.
+Focus on real options: city metro lines, BRT corridors, electric buses, rideshare apps, auto-rickshaws, cycling infrastructure, etc.
+Mention specific app names or services where relevant (e.g., BMTC, DTC, Ola Electric, Yulu bikes, etc.).
+
+For each option provide:
+- mode: short name (max 4 words)
+- description: 1 sentence describing availability in ${city}
+- co2PerKm: estimated kg CO2 per km (petrol car ≈ 0.192 for reference)
+- savingVsCarPct: % CO2 saving vs petrol car (0-100)
+- icon: one of: fa-train, fa-bus, fa-bicycle, fa-motorcycle, fa-car-side, fa-person-walking, fa-bolt
+
+Return JSON: { "suggestions": [ { "mode": "", "description": "", "co2PerKm": 0.0, "savingVsCarPct": 0, "icon": "" } ] }`;
+
+    const response = await ai.models.generateContent({
+      model: "gemini-2.0-flash",
+      contents: prompt,
+      config: {
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: Type.OBJECT,
+          properties: {
+            suggestions: {
+              type: Type.ARRAY,
+              items: {
+                type: Type.OBJECT,
+                properties: {
+                  mode: { type: Type.STRING },
+                  description: { type: Type.STRING },
+                  co2PerKm: { type: Type.NUMBER },
+                  savingVsCarPct: { type: Type.NUMBER },
+                  icon: { type: Type.STRING },
+                },
+                required: ["mode", "description", "co2PerKm", "savingVsCarPct", "icon"],
+              },
+            },
+          },
+          required: ["suggestions"],
+        },
+        temperature: 0.5,
+      },
+    });
+
+    const result = JSON.parse(response.text || "{}");
+    const suggestions: TransportSuggestion[] = (result.suggestions || []).slice(0, 5).map((s: any) => ({
+      mode: s.mode || "",
+      description: s.description || "",
+      co2PerKm: Math.max(0, Number(s.co2PerKm) || 0),
+      savingVsCarPct: Math.min(100, Math.max(0, Number(s.savingVsCarPct) || 0)),
+      icon: s.icon || "fa-bus",
+    }));
+
+    const final = suggestions.length > 0 ? suggestions : FALLBACK_SUGGESTIONS.default;
+    writeCache(key, final);
+    return final;
+  } catch (error) {
+    console.warn("Location suggestions failed, using fallback:", error);
+    return FALLBACK_SUGGESTIONS.default;
   }
 };

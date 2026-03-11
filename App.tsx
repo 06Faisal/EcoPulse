@@ -1,15 +1,43 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback, Suspense } from 'react';
 import Auth from './components/Auth';
-import Dashboard from './components/Dashboard';
-import Tracker from './components/Tracker';
-import Emissions from './components/Emissions';
-import AIAdvisor from './components/AIAdvisor';
-import Profile from './components/Profile';
 import Navigation from './components/Navigation';
+import { ThemeToggle } from './components/ui/theme-toggle';
+import InstallPrompt from './components/InstallPrompt';
+
+// Lazy-load heavy tab components for code-splitting
+const Dashboard = React.lazy(() => import('./components/Dashboard'));
+const Tracker = React.lazy(() => import('./components/Tracker'));
+const Emissions = React.lazy(() => import('./components/Emissions'));
+const AIAdvisor = React.lazy(() => import('./components/AIAdvisor'));
+const Profile = React.lazy(() => import('./components/Profile'));
+const Challenges = React.lazy(() => import('./components/Challenges'));
 import { cloud } from './services/cloudService';
 import { getAIAnalytics } from './services/geminiService';
 import { mlBackend } from './services/mlBackendService';
+import { restoreDailyReminder } from './services/notificationService';
 import { Trip, UtilityBill, UserProfile, AIInsight, CustomVehicle, VehicleType, LeaderboardEntry } from './services/types';
+
+// Reverse geocode lat/lng to city name using a free API (no key required)
+const reverseGeocodeCity = async (lat: number, lng: number): Promise<string> => {
+  try {
+    const resp = await fetch(
+      `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json`,
+      { headers: { 'Accept-Language': 'en', 'User-Agent': 'EcoPulse/2.0' } }
+    );
+    const data = await resp.json();
+    // Prioritise city-level names; avoid hyper-local suburbs / villages
+    return (
+      data?.address?.city ||
+      data?.address?.town ||
+      data?.address?.city_district ||
+      data?.address?.state_district ||
+      data?.address?.county ||
+      ''
+    );
+  } catch {
+    return '';
+  }
+};
 
 const IS_DEV = Boolean(import.meta.env.DEV);
 const SEED_TEST_DATA =
@@ -99,12 +127,14 @@ const buildSeedBills = (seedTag: string): UtilityBill[] => {
 
 function App() {
   const [currentUser, setCurrentUser] = useState<{ id: string; username: string } | null>(null);
-  const [activeTab, setActiveTab] = useState<'home' | 'track' | 'emissions' | 'ai' | 'profile'>('home');
+  const [activeTab, setActiveTab] = useState<'home' | 'track' | 'emissions' | 'ai' | 'profile' | 'challenges'>('home');
   const [trips, setTrips] = useState<Trip[]>([]);
   const [bills, setBills] = useState<UtilityBill[]>([]);
   const [insight, setInsight] = useState<AIInsight | null>(null);
   const [loadingInsight, setLoadingInsight] = useState(false);
   const [authReady, setAuthReady] = useState(false);
+  const [userCity, setUserCity] = useState<string>('');
+  const cityFetchedRef = useRef(false);
   const [userProfile, setUserProfile] = useState<UserProfile>({
     name: 'Alex Green',
     avatarId: 'fa-user-astronaut',
@@ -117,9 +147,35 @@ function App() {
     customVehicles: [],
     availableVehicles: ['Car', 'Bike', 'Bus', 'Train', 'Walking']
   });
-  const [availableVehicles, setAvailableVehicles] = useState<VehicleType[]>([]);
+  const [availableVehicles, setAvailableVehicles] = useState<VehicleType[]>(['Car', 'Bike', 'Bus', 'Train', 'Walking']);
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
   const analysisInFlightRef = useRef(false);
+
+  // Lazily detect city when AI tab opens (silent — no permission prompt forced)
+  const detectCity = useCallback(() => {
+    if (cityFetchedRef.current || userCity) return;
+    cityFetchedRef.current = true;
+    // Load from localStorage cache first
+    const cached = localStorage.getItem('ecopulse_user_city');
+    if (cached) { setUserCity(cached); return; }
+    if (!navigator.geolocation) return;
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        const city = await reverseGeocodeCity(pos.coords.latitude, pos.coords.longitude);
+        if (city) {
+          setUserCity(city);
+          localStorage.setItem('ecopulse_user_city', city);
+        }
+      },
+      () => { /* permission denied — silently ignore */ },
+      { timeout: 8000, maximumAge: 86400000 }
+    );
+  }, [userCity]);
+
+  // Trigger city detection whenever the AI tab becomes active
+  useEffect(() => {
+    if (activeTab === 'ai') detectCity();
+  }, [activeTab, detectCity]);
 
   const applySeedData = async (userId: string, baseTrips: Trip[], baseBills: UtilityBill[]) => {
     const seedTag = `${SEED_PREFIX}-${userId}`;
@@ -293,8 +349,15 @@ function App() {
     }
   };
 
-  // Restore session
+  // Restore session + register service worker
   useEffect(() => {
+    // Register PWA service worker
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/sw.js').catch(() => undefined);
+    }
+    // Restore daily notification reminder if previously set
+    restoreDailyReminder();
+
     const restore = async () => {
       try {
         const sessionUser = await cloud.getSessionUser();
@@ -511,11 +574,11 @@ function App() {
   };
 
   const handleAddTrip = (trip: Trip) => {
+    const nextPoints = userProfile.points + 10;
     setTrips(prev => [trip, ...prev]);
     setUserProfile(prev => ({ ...prev, points: prev.points + 10 }));
     if (currentUser) {
       cloud.insertTrip(currentUser.id, trip).catch((error) => console.error('Failed to save trip:', error));
-      const nextPoints = userProfile.points + 10;
       cloud.saveProfile(currentUser.id, { points: nextPoints }).catch((error) => console.error('Failed to save points:', error));
       refreshLeaderboard(currentUser.id).catch(() => undefined);
       mlBackend.syncTrip(currentUser.id, trip).catch((error) =>
@@ -542,16 +605,15 @@ function App() {
       co2,
       date: new Date().toISOString()
     };
-    
+    const nextPoints = userProfile.points + 20;
     // Remove existing bill for same month
     setBills(prev => {
-      const filtered = prev.filter(b => b.month !== month);
+      const filtered = prev.filter(b => !(b.month === month && b.year === year));
       return [newBill, ...filtered];
     });
     setUserProfile(prev => ({ ...prev, points: prev.points + 20 }));
     if (currentUser) {
       cloud.insertBill(currentUser.id, newBill).catch((error) => console.error('Failed to save bill:', error));
-      const nextPoints = userProfile.points + 20;
       cloud.saveProfile(currentUser.id, { points: nextPoints }).catch((error) => console.error('Failed to save points:', error));
       refreshLeaderboard(currentUser.id).catch(() => undefined);
       mlBackend.syncBill(currentUser.id, newBill).catch((error) =>
@@ -574,19 +636,21 @@ function App() {
         runMl: true,
         useRemoteRecommendations: true
       });
-      
-      // Update streak
+
+      // Update streak and loggedDays
       const today = new Date().toISOString().split('T')[0];
       const todayTrips = trips.filter(t => t.date.split('T')[0] === today);
-      if (todayTrips.length > 0) {
+      const alreadyLogged = (userProfile.loggedDays || []).includes(today);
+      if (todayTrips.length > 0 && !alreadyLogged) {
+        const nextStreak = userProfile.streak + 1;
+        const nextPoints = userProfile.points + 50;
         setUserProfile(prev => ({
           ...prev,
           streak: prev.streak + 1,
-          points: prev.points + 50
+          points: prev.points + 50,
+          loggedDays: Array.from(new Set([...(prev.loggedDays || []), today]))
         }));
         if (currentUser) {
-          const nextStreak = userProfile.streak + 1;
-          const nextPoints = userProfile.points + 50;
           cloud
             .saveProfile(currentUser.id, { streak: nextStreak, points: nextPoints })
             .catch((error) => console.error('Failed to update streak:', error));
@@ -629,9 +693,9 @@ function App() {
         ...prev,
         customVehicles: prev.customVehicles?.filter(v => v.name !== vehicleName) || []
       }));
-      
+
       // Also remove any trips using this custom vehicle
-      setTrips(trips.filter(t => !(t.vehicle === 'Custom' && t.customVehicleName === vehicleName)));
+      setTrips(prev => prev.filter(t => !(t.vehicle === 'Custom' && t.customVehicleName === vehicleName)));
     }
   };
 
@@ -644,10 +708,10 @@ function App() {
       cloud.saveProfile(currentUser.id, { availableVehicles: updatedVehicles }).catch((error) =>
         console.error('Failed to save available vehicles:', error)
       );
-      
-      // Also delete all trips with this vehicle type
+
+      // Also delete all trips with this vehicle type (use snapshot for cloud deletes)
       const removedTrips = trips.filter(t => t.vehicle === vehicleType);
-      setTrips(trips.filter(t => t.vehicle !== vehicleType));
+      setTrips(prev => prev.filter(t => t.vehicle !== vehicleType));
       removedTrips.forEach((trip) => {
         cloud.deleteTrip(currentUser.id, trip.id).catch((error) => console.error('Failed to delete trip:', error));
       });
@@ -665,8 +729,12 @@ function App() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 transition-colors duration-300">
+    <div className="min-h-screen text-slate-900 dark:text-slate-100 transition-colors duration-300">
+      <div className="mesh-bg" />
       <div className="max-w-md mx-auto pb-20">
+        {/* Install prompt banner */}
+        <InstallPrompt />
+
         {/* Header */}
         <header className="sticky top-0 z-30 bg-white/80 dark:bg-slate-900/80 backdrop-blur-2xl border-b border-slate-100 dark:border-slate-800 px-6 py-4">
           <div className="flex items-center justify-between">
@@ -680,12 +748,11 @@ function App() {
               </div>
             </div>
             <div className="flex items-center gap-2">
-              <button
-                onClick={() => handleUpdateProfile({ darkMode: !userProfile.darkMode })}
-                className="w-10 h-10 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 flex items-center justify-center transition-colors"
-              >
-                <i className={`fa-solid ${userProfile.darkMode ? 'fa-sun' : 'fa-moon'}`}></i>
-              </button>
+              <ThemeToggle
+                className=""
+                isDark={userProfile.darkMode}
+                onToggle={() => handleUpdateProfile({ darkMode: !userProfile.darkMode })}
+              />
               <button
                 onClick={handleLogout}
                 className="w-10 h-10 rounded-xl bg-rose-100 dark:bg-rose-500/10 text-rose-500 flex items-center justify-center transition-colors"
@@ -698,57 +765,81 @@ function App() {
 
         {/* Main Content */}
         <main className="px-6">
-          {activeTab === 'home' && (
-            <Dashboard
-              trips={trips}
-              electricity={totalElectricity}
-              insight={insight}
-              user={userProfile}
-              loading={loadingInsight}
-            />
-          )}
-          {activeTab === 'track' && (
-            <Tracker
-              trips={trips}
-              bills={bills}
-              customVehicles={userProfile.customVehicles || []}
-              availableVehicles={availableVehicles}
-              onAddTrip={handleAddTrip}
-              onDeleteTrip={handleDeleteTrip}
-              onUpdateElectricity={handleUpdateElectricity}
-              onDeleteBill={handleDeleteBill}
-              onFinishDay={handleFinishDay}
-              onAddCustomVehicle={handleAddCustomVehicle}
-              onDeleteCustomVehicle={handleDeleteCustomVehicle}
-              onDeleteBaseVehicle={handleDeleteBaseVehicle}
-            />
-          )}
-          {activeTab === 'emissions' && (
-            <Emissions 
-              trips={trips} 
-              electricity={totalElectricity}
-              onDeleteTripsByVehicle={(vehicleType) => {
-                const updatedTrips = trips.filter(t => {
-                  if (t.vehicle === 'Custom') {
-                    return t.customVehicleName !== vehicleType;
-                  }
-                  return t.vehicle !== vehicleType;
-                });
-                setTrips(updatedTrips);
-              }}
-            />
-          )}
-          {activeTab === 'ai' && (
-            <AIAdvisor insight={insight} loading={loadingInsight} />
-          )}
-          {activeTab === 'profile' && (
-            <Profile
-              user={userProfile}
-              trips={trips}
-              onUpdateProfile={handleUpdateProfile}
-              rankings={leaderboard}
-            />
-          )}
+          <Suspense fallback={
+            <div className="flex items-center justify-center py-20">
+              <div className="w-8 h-8 border-3 border-emerald-500 border-t-transparent rounded-full animate-spin" />
+            </div>
+          }>
+            {activeTab === 'home' && (
+              <Dashboard
+                trips={trips}
+                bills={bills}
+                electricity={totalElectricity}
+                insight={insight}
+                user={userProfile}
+                loading={loadingInsight}
+              />
+            )}
+            {activeTab === 'track' && (
+              <Tracker
+                trips={trips}
+                bills={bills}
+                customVehicles={userProfile.customVehicles || []}
+                availableVehicles={availableVehicles}
+                onAddTrip={handleAddTrip}
+                onDeleteTrip={handleDeleteTrip}
+                onUpdateElectricity={handleUpdateElectricity}
+                onDeleteBill={handleDeleteBill}
+                onFinishDay={handleFinishDay}
+                onAddCustomVehicle={handleAddCustomVehicle}
+                onDeleteCustomVehicle={handleDeleteCustomVehicle}
+                onDeleteBaseVehicle={handleDeleteBaseVehicle}
+              />
+            )}
+            {activeTab === 'emissions' && (
+              <Emissions
+                trips={trips}
+                electricity={totalElectricity}
+                bills={bills}
+                onDeleteTripsByVehicle={(vehicleType) => {
+                  const updatedTrips = trips.filter(t => {
+                    if (t.vehicle === 'Custom') {
+                      return t.customVehicleName !== vehicleType;
+                    }
+                    return t.vehicle !== vehicleType;
+                  });
+                  setTrips(updatedTrips);
+                }}
+              />
+            )}
+            {activeTab === 'ai' && (
+              <AIAdvisor
+                insight={insight}
+                loading={loadingInsight}
+                userCity={userCity}
+                mostUsedVehicle={insight?.patterns?.mostUsedVehicle}
+              />
+            )}
+            {activeTab === 'challenges' && currentUser && (
+              <Challenges
+                userId={currentUser.id}
+                userCO2ThisWeek={(() => {
+                  const cutoff = new Date();
+                  cutoff.setDate(cutoff.getDate() - 7);
+                  return trips.filter(t => new Date(t.date) >= cutoff).reduce((s, t) => s + t.co2, 0);
+                })()}
+              />
+            )}
+            {activeTab === 'profile' && (
+              <Profile
+                user={userProfile}
+                trips={trips}
+                bills={bills}
+                onUpdateProfile={handleUpdateProfile}
+                rankings={leaderboard}
+              />
+            )}
+          </Suspense>
         </main>
 
         {/* Navigation */}

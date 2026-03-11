@@ -173,8 +173,21 @@ export const cloud = {
       date: trip.date,
       co2: trip.co2
     };
+    // Only include extended fields if they have values
+    // (avoids errors if these columns don't exist in the DB yet)
+    if (trip.vehicleType) payload.vehicle_type = trip.vehicleType;
+    if (trip.fuelType) payload.fuel_type = trip.fuelType;
+    if (trip.vehicleCondition) payload.vehicle_condition = trip.vehicleCondition;
+    if (trip.drivingStyle) payload.driving_style = trip.drivingStyle;
+    if (trip.odometerKm != null) payload.odometer_km = trip.odometerKm;
+    if (trip.isAutomatic != null) payload.is_automatic = trip.isAutomatic;
+    if (trip.confidence != null) payload.confidence = trip.confidence;
+
     const { error } = await supabase.from('trips').insert(payload);
-    if (error) throw new Error(formatSupabaseError(error));
+    if (error) {
+      console.error('[insertTrip] Failed to save trip to Supabase:', formatSupabaseError(error), payload);
+      throw new Error(formatSupabaseError(error));
+    }
   },
 
   async deleteTrip(userId: string, tripId: string) {

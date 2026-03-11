@@ -2,34 +2,46 @@
 import React from 'react';
 
 interface NavigationProps {
-  activeTab: 'home' | 'track' | 'emissions' | 'ai' | 'profile';
-  onTabChange: (tab: 'home' | 'track' | 'emissions' | 'ai' | 'profile') => void;
+  activeTab: 'home' | 'track' | 'emissions' | 'ai' | 'profile' | 'challenges';
+  onTabChange: (tab: 'home' | 'track' | 'emissions' | 'ai' | 'profile' | 'challenges') => void;
 }
 
 const Navigation: React.FC<NavigationProps> = ({ activeTab, onTabChange }) => {
-  const tabs: {id: 'home' | 'track' | 'emissions' | 'ai' | 'profile', icon: string, label: string}[] = [
+  const tabs: { id: 'home' | 'track' | 'emissions' | 'ai' | 'challenges' | 'profile', icon: string, label: string }[] = [
     { id: 'home', icon: 'fa-house-chimney', label: 'Home' },
     { id: 'track', icon: 'fa-square-plus', label: 'Log' },
     { id: 'emissions', icon: 'fa-chart-pie', label: 'Impact' },
     { id: 'ai', icon: 'fa-brain', label: 'Advisor' },
-    { id: 'profile', icon: 'fa-trophy', label: 'Social' }
+    { id: 'challenges', icon: 'fa-trophy', label: 'Compete' },
+    { id: 'profile', icon: 'fa-user-circle', label: 'Profile' },
   ];
 
+  const activeIndex = tabs.findIndex(t => t.id === activeTab);
+
   return (
-    <nav className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-md bg-white/80 dark:bg-slate-900/80 backdrop-blur-2xl border-t border-slate-100 dark:border-slate-800 flex justify-around items-center px-4 py-4 safe-bottom z-40 transition-colors duration-300">
-      {tabs.map((tab) => (
-        <button
-          key={tab.id}
-          onClick={() => onTabChange(tab.id)}
-          className={`flex flex-col items-center gap-1.5 transition-all duration-300 ${activeTab === tab.id ? 'active-tab' : 'text-slate-400 dark:text-slate-600 hover:text-slate-900 dark:hover:text-slate-300'}`}
-        >
-          <div className={`w-12 h-10 rounded-2xl flex items-center justify-center transition-all ${activeTab === tab.id ? 'bg-emerald-500/10 text-xl' : 'text-lg'}`}>
-            <i className={`fa-solid ${tab.icon}`}></i>
-          </div>
-          <span className="text-[11px] font-black uppercase tracking-[0.12em]">{tab.label}</span>
-        </button>
-      ))}
-    </nav>
+    <div className="fixed bottom-6 left-0 right-0 z-50 px-4 pointer-events-none">
+      <nav className="mx-auto max-w-[400px] bg-white/90 dark:bg-slate-900/90 backdrop-blur-2xl rounded-[2rem] p-2 flex justify-between items-center shadow-2xl pointer-events-auto border border-white/50 dark:border-white/10 relative overflow-hidden">
+        {/* Sliding active pill background */}
+        <div
+          className="absolute top-2 bottom-2 w-[calc((100%-16px)/6)] bg-emerald-500/15 dark:bg-emerald-500/20 rounded-[1.5rem] transition-transform duration-500 ease-[cubic-bezier(0.175,0.885,0.32,1.275)]"
+          style={{ transform: `translateX(${activeIndex * 100}%)` }}
+        />
+
+        {tabs.map((tab) => (
+          <button
+            key={tab.id}
+            onClick={() => onTabChange(tab.id as NavigationProps['activeTab'])}
+            className={`relative z-10 flex flex-col items-center justify-center w-full py-2 gap-1 transition-colors duration-300 rounded-2xl interactive ${activeTab === tab.id
+              ? 'text-emerald-600 dark:text-emerald-400 font-bold'
+              : 'text-slate-400 dark:text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 font-medium'
+              }`}
+          >
+            <i className={`fa-solid ${tab.icon} transition-transform duration-500 ease-[cubic-bezier(0.175,0.885,0.32,1.275)] ${activeTab === tab.id ? 'scale-110 text-lg shadow-emerald-500/20 drop-shadow-md' : 'text-base'}`}></i>
+            <span className="text-[9px] uppercase tracking-[0.1em]">{tab.label}</span>
+          </button>
+        ))}
+      </nav>
+    </div>
   );
 };
 

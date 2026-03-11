@@ -1,97 +1,56 @@
-import sqlite3
+import os
 from pathlib import Path
+from dotenv import load_dotenv
+from supabase import create_client, Client
 
-DB_PATH = Path(__file__).resolve().parent.parent / "data" / "ecopulse.db"
+# Load environment variables from .env.local in the project root
+env_path = Path(__file__).resolve().parent.parent.parent / '.env.local'
+load_dotenv(dotenv_path=env_path)
 
+SUPABASE_URL = os.environ.get("VITE_SUPABASE_URL", "")
+SUPABASE_KEY = os.environ.get("VITE_SUPABASE_ANON_KEY", "")
 
-def get_connection():
-    DB_PATH.parent.mkdir(parents=True, exist_ok=True)
-    return sqlite3.connect(DB_PATH)
-
+# Initialize Supabase client
+# Fallback to dummy client if keys are missing (should not happen in proper deploy)
+if SUPABASE_URL and SUPABASE_KEY:
+    supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
+else:
+    supabase = None
 
 def init_db():
-    with get_connection() as conn:
-        cur = conn.cursor()
-        cur.execute(
-            """
-            CREATE TABLE IF NOT EXISTS trips (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                user_id TEXT NOT NULL,
-                date TEXT NOT NULL,
-                distance REAL NOT NULL,
-                co2 REAL NOT NULL,
-                vehicle TEXT
-            )
-            """
-        )
-        cur.execute(
-            """
-            CREATE UNIQUE INDEX IF NOT EXISTS trips_unique_entry
-            ON trips (user_id, date, distance, co2, vehicle)
-            """
-        )
-        cur.execute(
-            """
-            CREATE TABLE IF NOT EXISTS bills (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                user_id TEXT NOT NULL,
-                date TEXT NOT NULL,
-                units REAL NOT NULL
-            )
-            """
-        )
-        cur.execute(
-            """
-            CREATE UNIQUE INDEX IF NOT EXISTS bills_unique_entry
-            ON bills (user_id, date, units)
-            """
-        )
-        conn.commit()
-
+    # No-op since Supabase is managed externally
+    pass
 
 def insert_trip(payload):
-    with get_connection() as conn:
-        cur = conn.cursor()
-        cur.execute(
-            "INSERT OR IGNORE INTO trips (user_id, date, distance, co2, vehicle) VALUES (?, ?, ?, ?, ?)",
-            (payload.user_id, payload.date, payload.distance, payload.co2, payload.vehicle),
-        )
-        conn.commit()
-
+    # No-op: Frontend already writes directly to Supabase via cloudService.ts.
+    # We keep this endpoint alive so we don't break frontend mlBackend sync logic,
+    # but the ML service exclusively reads from Supabase anyway.
+    pass
 
 def insert_bill(payload):
-    with get_connection() as conn:
-        cur = conn.cursor()
-        cur.execute(
-            "INSERT OR IGNORE INTO bills (user_id, date, units) VALUES (?, ?, ?)",
-            (payload.user_id, payload.date, payload.units),
-        )
-        conn.commit()
-
+    # No-op: Frontend already writes directly to Supabase via cloudService.ts.
+    pass
 
 def fetch_trips(user_id: str):
-    with get_connection() as conn:
-        cur = conn.cursor()
-        cur.execute(
-            "SELECT date, distance, co2, vehicle FROM trips WHERE user_id = ? ORDER BY date ASC",
-            (user_id,),
-        )
-        return cur.fetchall()
-
+    if not supabase:
+        raise ValueError("Supabase client not initialized")
+        
+    response = supabase.table("trips").select("date, distance, co2, vehicle").eq("user_id", user_id).order("date").execute()
+    
+    return [(row["date"], float(row["distance"]), float(row["co2"]), row.get("vehicle", "")) for row in response.data]
 
 def fetch_bills(user_id: str):
-    with get_connection() as conn:
-        cur = conn.cursor()
-        cur.execute(
-            "SELECT date, units FROM bills WHERE user_id = ? ORDER BY date ASC",
-            (user_id,),
-        )
-        return cur.fetchall()
-
+    if not supabase:
+        raise ValueError("Supabase client not initialized")
+        
+    response = supabase.table("bills").select("date, units").eq("user_id", user_id).order("date").execute()
+    
+    return [(row["date"], float(row["units"])) for row in response.data]
 
 def fetch_user_ids():
-    with get_connection() as conn:
-        cur = conn.cursor()
-        cur.execute("SELECT DISTINCT user_id FROM trips ORDER BY user_id ASC")
-        rows = cur.fetchall()
-        return [row[0] for row in rows]
+    if not supabase:
+        raise ValueError("Supabase client not initialized")
+        
+    response = supabase.table("profiles").select("id").execute()
+    
+    return [row["id"] for row in response.data]

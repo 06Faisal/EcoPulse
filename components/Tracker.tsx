@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { VehicleType, Trip, UtilityBill, CustomVehicle } from '../services/types';
-import { predictEmissionFactor, verifyBillImage } from '../services/geminiService';
+import { predictEmissionFactor, verifyBillImage, lookupVehicleByPlate, verifyOdometerImage } from '../services/geminiService';
 
 // Haversine formula for distance calculation
 const calculateHaversineDistance = (
@@ -15,9 +15,9 @@ const calculateHaversineDistance = (
   const a =
     Math.sin(dLat / 2) * Math.sin(dLat / 2) +
     Math.cos(toRad(coord1.lat)) *
-      Math.cos(toRad(coord2.lat)) *
-      Math.sin(dLng / 2) *
-      Math.sin(dLng / 2);
+    Math.cos(toRad(coord2.lat)) *
+    Math.sin(dLng / 2) *
+    Math.sin(dLng / 2);
 
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
   return R * c;
@@ -89,7 +89,7 @@ const GOVERNMENT_BASELINES_KG_PER_KM: Partial<Record<string, number>> = {
 };
 
 const DEFAULT_BASELINES_KG_PER_KM: Partial<Record<string, number>> = {
-  car: 0.19,
+  car: 0.192, // India GHG Program average 4-wheeler (0.2055 kg/km, conservative)
   bus: 0.015161,
   train: 0.00795,
   scooter: 0.0368,
@@ -285,8 +285,8 @@ const getEmissionSummary = (trip: Trip, customVehicles: CustomVehicle[]) => {
     statusLabel === 'Good'
       ? 'bg-emerald-500/10 text-emerald-500'
       : statusLabel === 'Avg'
-      ? 'bg-amber-500/10 text-amber-500'
-      : 'bg-rose-500/10 text-rose-500';
+        ? 'bg-amber-500/10 text-amber-500'
+        : 'bg-rose-500/10 text-rose-500';
 
   return { baselineStatus, statusLabel, message, badgeClass };
 };
@@ -356,61 +356,51 @@ const computePathDistanceKm = (coords: { lat: number; lng: number }[]) => {
   return total;
 };
 
-const fetchSnappedPath = async (points: TrackingPoint[], apiKey: string) => {
-  if (points.length < 2) return [] as { lat: number; lng: number }[];
-  const path = points.map((p) => `${p.lat},${p.lng}`).join('|');
-  const params = new URLSearchParams({
-    path,
-    interpolate: 'true',
-    key: apiKey
-  });
-  const response = await fetch(`https://roads.googleapis.com/v1/snapToRoads?${params.toString()}`);
-  if (!response.ok) {
-    throw new Error(`Snap to Roads failed (${response.status})`);
-  }
-  const data = await response.json();
-  const snappedPoints = Array.isArray(data?.snappedPoints) ? data.snappedPoints : [];
-  return snappedPoints
-    .map((point: any) => ({
-      lat: point?.location?.latitude ?? point?.location?.lat,
-      lng: point?.location?.longitude ?? point?.location?.lng
-    }))
-    .filter((point: any) => Number.isFinite(point.lat) && Number.isFinite(point.lng));
-};
+/**
+ * OSRM Map Matching — free, open-source, no API key required.
+ * Uses the public OSRM demo server (router.project-osrm.org).
+ * Falls back silently to raw Haversine distance if OSRM is unreachable.
+ */
+const fetchOSRMMatchedDistance = async (points: TrackingPoint[]): Promise<number | null> => {
+  if (points.length < 2) return null;
 
-const getMatchedDistanceKm = async (points: TrackingPoint[], apiKey: string) => {
-  if (!apiKey || points.length < 2) return null;
-  const chunks = chunkWithOverlap(points, ROUTE_MATCHING_MAX_POINTS);
-  let total = 0;
-  let lastCoord: { lat: number; lng: number } | null = null;
+  // OSRM accepts max 100 coordinates per request; chunk if needed
+  const MAX_OSRM_POINTS = 100;
 
-  for (const chunk of chunks) {
-    const snapped = await fetchSnappedPath(chunk, apiKey);
-    if (snapped.length === 0) continue;
+  const processChunk = async (chunk: TrackingPoint[]): Promise<number | null> => {
+    // OSRM uses lng,lat order (opposite of Google)
+    const coords = chunk.map(p => `${p.lng.toFixed(6)},${p.lat.toFixed(6)}`).join(';');
+    // Radius of acceptable GPS accuracy per point (meters)
+    const radiuses = chunk.map(() => '30').join(';');
 
-    let startIndex = 0;
-    if (lastCoord) {
-      const first = snapped[0];
-      if (
-        Math.abs(first.lat - lastCoord.lat) < 1e-6 &&
-        Math.abs(first.lng - lastCoord.lng) < 1e-6
-      ) {
-        startIndex = 1;
-      } else {
-        total += calculateHaversineDistance(lastCoord, first);
-      }
-    }
+    const url = `https://router.project-osrm.org/match/v1/driving/${coords}` +
+      `?overview=full&geometries=geojson&steps=false&radiuses=${radiuses}&gaps=split`;
 
-    const segment = snapped.slice(startIndex);
-    if (segment.length > 1) {
-      total += computePathDistanceKm(segment);
-    }
+    const resp = await fetch(url, { signal: AbortSignal.timeout(8000) });
+    if (!resp.ok) return null;
 
-    lastCoord = snapped[snapped.length - 1];
+    const data = await resp.json();
+    if (!data.matchings || data.matchings.length === 0) return null;
+
+    // Sum the distance from all matched segments (OSRM returns metres)
+    const totalMetres: number = data.matchings.reduce(
+      (sum: number, m: any) => sum + (m.distance || 0), 0
+    );
+    return totalMetres / 1000; // convert to km
+  };
+
+  // Calculate how many chunks we need
+  let totalKm = 0;
+  for (let i = 0; i < points.length; i += MAX_OSRM_POINTS - 1) {
+    const chunk = points.slice(i, i + MAX_OSRM_POINTS);
+    if (chunk.length < 2) break;
+    const dist = await processChunk(chunk);
+    if (dist !== null) totalKm += dist;
   }
 
-  return total > 0 ? total : null;
+  return totalKm > 0 ? totalKm : null;
 };
+
 
 interface TrackerProps {
   trips: Trip[];
@@ -427,15 +417,15 @@ interface TrackerProps {
   onDeleteBaseVehicle?: (vehicleType: VehicleType) => void; // NEW: Handler for deleting base vehicles
 }
 
-const Tracker: React.FC<TrackerProps> = ({ 
-  trips, 
-  bills, 
+const Tracker: React.FC<TrackerProps> = ({
+  trips,
+  bills,
   customVehicles,
   availableVehicles = [], // Base vehicles disabled; custom-only
-  onAddTrip, 
-  onDeleteTrip, 
-  onUpdateElectricity, 
-  onDeleteBill, 
+  onAddTrip,
+  onDeleteTrip,
+  onUpdateElectricity,
+  onDeleteBill,
   onFinishDay,
   onAddCustomVehicle,
   onDeleteCustomVehicle,
@@ -449,23 +439,25 @@ const Tracker: React.FC<TrackerProps> = ({
   const [vehicle, setVehicle] = useState<VehicleType>('Car');
   const [selectedCustomVehicle, setSelectedCustomVehicle] = useState<string>('');
   const [scanning, setScanning] = useState(false);
-  
+  const [scanningOdometer, setScanningOdometer] = useState(false);
+
   // Tracking mode
   const [trackingMode, setTrackingMode] = useState<'manual' | 'automatic'>('manual');
   const [isTracking, setIsTracking] = useState(false);
   const [isMatchingRoute, setIsMatchingRoute] = useState(false);
-  const [startLocation, setStartLocation] = useState<{lat: number, lng: number} | null>(null);
+  const [startLocation, setStartLocation] = useState<{ lat: number, lng: number } | null>(null);
   const [currentDistance, setCurrentDistance] = useState(0);
   const watchIdRef = useRef<number | null>(null);
   const startLocationRef = useRef<{ lat: number; lng: number } | null>(null);
   const lastPointRef = useRef<TrackingPoint | null>(null);
   const breadcrumbsRef = useRef<TrackingPoint[]>([]);
   const distanceRef = useRef(0);
-  const roadsApiKey =
-    import.meta.env.VITE_GOOGLE_ROADS_API_KEY ||
-    import.meta.env.VITE_GOOGLE_MAPS_API_KEY ||
-    '';
-  
+  const wakeLockRef = useRef<WakeLockSentinel | null>(null);
+  const backgroundWarnedRef = useRef(false);
+  const [wakeLockActive, setWakeLockActive] = useState(false);
+  const roadsApiKey = ''; // Replaced by free OSRM — no API key needed
+
+
   // Custom vehicle modal - UPDATED: Predict emission factor via API
   const [showCustomVehicleModal, setShowCustomVehicleModal] = useState(false);
   const [customVehicleName, setCustomVehicleName] = useState('');
@@ -478,11 +470,86 @@ const Tracker: React.FC<TrackerProps> = ({
   const [customDrivingStyle, setCustomDrivingStyle] = useState<CustomVehicle['drivingStyle'] | ''>('');
   const [customOdometerKm, setCustomOdometerKm] = useState('');
   const [isPredictingFactor, setIsPredictingFactor] = useState(false);
+  const [plateInput, setPlateInput] = useState('');
+  const [isLookingUpPlate, setIsLookingUpPlate] = useState(false);
+  const [plateSource, setPlateSource] = useState<'parivahan' | 'gemini' | 'not_found' | null>(null);
+  const [plateError, setPlateError] = useState('');
+  const [enrichedLookupData, setEnrichedLookupData] = useState<{
+    vehicleAge?: number;
+    emissionNorm?: string;
+    colour?: string;
+    bodyType?: string;
+    conditionHint?: string;
+  } | null>(null);
+
+  const ML_API_URL = import.meta.env.VITE_ML_API_URL || 'http://localhost:8000/api';
+
+  const handlePlateLookup = async () => {
+    const reg = plateInput.trim();
+    if (!reg || reg.length < 4) {
+      setPlateError('Enter a valid registration number (e.g. MH12AB1234)');
+      return;
+    }
+    setIsLookingUpPlate(true);
+    setPlateError('');
+    setPlateSource(null);
+    setEnrichedLookupData(null);
+    try {
+      const resp = await fetch(`${ML_API_URL}/vehicle-lookup?reg=${encodeURIComponent(reg)}`);
+      if (!resp.ok) {
+        setPlateError('Could not reach the lookup service. Please fill in the details manually.');
+        return;
+      }
+      const data = await resp.json();
+
+      if (data.source === 'parivahan' && (data.make || data.model)) {
+        if (data.make && data.model) {
+          setCustomVehicleName(`${data.make} ${data.model}`.trim());
+        } else if (data.make) {
+          setCustomVehicleName(data.make);
+        }
+        if (data.make) setCustomVehicleMake(data.make);
+        if (data.model) setCustomVehicleModel(data.model);
+        if (data.year) setCustomVehicleYear(String(data.year));
+        if (data.fuelType) setCustomFuelType(data.fuelType === 'petrol' ? 'gas' : data.fuelType);
+        if (data.vehicleType) setCustomVehicleType(data.vehicleType);
+        // Auto-fill condition from RC data hint
+        if (data.conditionHint) {
+          setCustomVehicleCondition(data.conditionHint as CustomVehicle['vehicleCondition']);
+        }
+        setEnrichedLookupData({
+          vehicleAge: data.vehicleAge,
+          emissionNorm: data.emissionNorm,
+          colour: data.colour,
+          bodyType: data.bodyType,
+          conditionHint: data.conditionHint,
+        });
+        setPlateSource('parivahan');
+      } else if (data.source === 'not_found') {
+        setPlateSource('not_found');
+        setPlateError('Plate not found in Parivahan database. Please fill in the details manually.');
+      } else {
+        setPlateError('No data found for this plate. The government database may be temporarily unavailable.');
+      }
+    } catch {
+      setPlateError('Could not reach the lookup service. Please fill in the details manually.');
+    } finally {
+      setIsLookingUpPlate(false);
+    }
+  };
 
   const months = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
-  
-  // Custom-only vehicle chips
-  const vehicleChips = customVehicles.map((cv) => ({
+
+  // Build vehicle chips from BOTH base vehicles and custom vehicles
+  const baseVehicleChips = (availableVehicles || []).map((v) => ({
+    kind: 'base' as const,
+    key: `base-${v}`,
+    label: v,
+    icon: vehicleIcons[v] || 'fa-car-side',
+    vehicleType: v
+  }));
+
+  const customVehicleChips = customVehicles.map((cv) => ({
     kind: 'custom' as const,
     key: `custom-${cv.name}`,
     label: cv.name,
@@ -490,12 +557,8 @@ const Tracker: React.FC<TrackerProps> = ({
     customName: cv.name
   }));
 
-  // NEW: Update selected vehicle if it gets removed
-  useEffect(() => {
-    if (vehicle !== 'Custom') {
-      setVehicle('Custom');
-    }
-  }, [vehicle]);
+  const allVehicleChips = [...baseVehicleChips, ...customVehicleChips];
+
 
   const handleSaveCustomVehicle = async () => {
     if (!customVehicleName.trim()) {
@@ -536,9 +599,9 @@ const Tracker: React.FC<TrackerProps> = ({
         drivingStyle: customDrivingStyle || undefined,
         odometerKm
       };
-      
+
       onAddCustomVehicle(newVehicle);
-      
+
       // Reset form
       setCustomVehicleName('');
       setCustomVehicleType('');
@@ -549,6 +612,10 @@ const Tracker: React.FC<TrackerProps> = ({
       setCustomVehicleCondition('');
       setCustomDrivingStyle('');
       setCustomOdometerKm('');
+      setPlateInput('');
+      setPlateSource(null);
+      setPlateError('');
+      setEnrichedLookupData(null);
       setShowCustomVehicleModal(false);
     } catch (error) {
       console.error('Failed to predict emission factor:', error);
@@ -575,15 +642,15 @@ const Tracker: React.FC<TrackerProps> = ({
 
       return baseFactor;
     }
-    
+
     const factors: Record<string, number> = {
-      'Car': 0.19,
+      'Car': 0.192, // India GHG Program average 4-wheeler
       'Bus': 0.08,
       'Train': 0.04,
       'Bike': 0.01,
       'Walking': 0
     };
-    
+
     return factors[vehicleType] || 0.15;
   };
 
@@ -611,10 +678,46 @@ const Tracker: React.FC<TrackerProps> = ({
     );
   };
 
+  const handleOdometerUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setScanningOdometer(true);
+    const reader = new FileReader();
+    reader.onloadend = async () => {
+      const result = await verifyOdometerImage(reader.result as string);
+      if (result && result.odometer > 0) {
+        let calculated = "";
+        const isCustom = vehicle === 'Custom';
+        const customName = isCustom ? selectedCustomVehicle : undefined;
+        const vehicleTrips = trips.filter(t => t.vehicle === vehicle && t.customVehicleName === customName && t.odometerKm !== undefined && t.odometerKm !== null);
+        const lastTrip = vehicleTrips.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0];
+
+        if (lastTrip && lastTrip.odometerKm) {
+          const diff = result.odometer - lastTrip.odometerKm;
+          if (diff > 0 && diff < 2000) {
+            setDistance(diff.toString());
+            calculated = `\n\nDistance since last trip (${diff} km) has been automatically filled!`;
+          } else {
+            calculated = `\n\nDistance could not be calculated (difference from last trip: ${diff} km).`;
+          }
+        } else {
+          calculated = `\n\nOdometer recorded: ${result.odometer} km. Log more trips to enable auto-distance calculation.`;
+        }
+
+        alert(`Extracted Odometer: ${result.odometer} km\nConfidence: ${result.confidence}%\nReasoning: ${result.reasoning || 'None'}${calculated}`);
+      } else {
+        alert("Failed to extract a valid reading. Please try a clearer photo of the dashboard.");
+      }
+      setScanningOdometer(false);
+    };
+    reader.readAsDataURL(file);
+    e.target.value = ''; // reset input
+  };
+
   const handleAddTrip = () => {
     const d = parseFloat(distance);
     if (isNaN(d) || d <= 0) return;
-    
+
     const isCustom = vehicle === 'Custom';
     const customName = isCustom ? selectedCustomVehicle : undefined;
     if (isCustom && !customName) {
@@ -641,7 +744,7 @@ const Tracker: React.FC<TrackerProps> = ({
 
     onAddTrip(newTrip);
     warnIfAboveBaseline(newTrip);
-    
+
     setDistance('');
   };
 
@@ -665,8 +768,10 @@ const Tracker: React.FC<TrackerProps> = ({
         setCurrentDistance(0);
         lastPointRef.current = startPoint;
         breadcrumbsRef.current = [startPoint];
+        backgroundWarnedRef.current = false; // reset for new session
         setIsTracking(true);
         setIsMatchingRoute(false);
+        acquireWakeLock(); // keep screen on while tracking
 
         // Watch position changes
         const watchId = navigator.geolocation.watchPosition(
@@ -676,6 +781,9 @@ const Tracker: React.FC<TrackerProps> = ({
               lng: pos.coords.longitude,
               timestamp: pos.timestamp || Date.now()
             };
+
+            // Filter out inaccurate GPS fixes (> 50 m accuracy radius)
+            if (pos.coords.accuracy > 50) return;
 
             const lastPoint = lastPointRef.current;
             if (!lastPoint) {
@@ -690,6 +798,10 @@ const Tracker: React.FC<TrackerProps> = ({
             );
             const deltaMeters = deltaKm * 1000;
             const deltaTime = point.timestamp - lastPoint.timestamp;
+
+            // Speed sanity check: reject points implying > 200 km/h (GPS glitch)
+            const speedKmH = deltaTime > 0 ? (deltaKm / (deltaTime / 3600000)) : 0;
+            if (speedKmH > 200) return;
 
             if (deltaMeters < ROUTE_MATCHING_MIN_STEP_METERS && deltaTime < ROUTE_MATCHING_MIN_STEP_MS) {
               return;
@@ -721,9 +833,11 @@ const Tracker: React.FC<TrackerProps> = ({
     }
 
     setIsTracking(false);
+    releaseWakeLock(); // allow screen to sleep again
 
     const trackedPoints = breadcrumbsRef.current;
-    const shouldMatchRoute = Boolean(roadsApiKey && trackedPoints.length >= 2);
+    // Use OSRM map matching when we have enough points (free, no API key needed)
+    const shouldMatchRoute = trackedPoints.length >= 4;
     setIsMatchingRoute(shouldMatchRoute);
     let distanceKm = distanceRef.current;
 
@@ -739,12 +853,12 @@ const Tracker: React.FC<TrackerProps> = ({
 
     if (shouldMatchRoute) {
       try {
-        const matchedDistance = await getMatchedDistanceKm(trackedPoints, roadsApiKey);
+        const matchedDistance = await fetchOSRMMatchedDistance(trackedPoints);
         if (matchedDistance && matchedDistance > 0) {
           distanceKm = matchedDistance;
         }
       } catch (error) {
-        console.error('Route matching failed, using raw GPS distance', error);
+        console.warn('OSRM route matching unavailable, using raw GPS distance', error);
       }
     }
 
@@ -781,13 +895,50 @@ const Tracker: React.FC<TrackerProps> = ({
     resetTrackingState();
   };
 
-  // Cleanup on unmount
+  // Wake lock: prevent screen from sleeping while tracking
+  const acquireWakeLock = async () => {
+    try {
+      if ('wakeLock' in navigator) {
+        wakeLockRef.current = await (navigator as any).wakeLock.request('screen');
+        wakeLockRef.current.addEventListener('release', () => setWakeLockActive(false));
+        setWakeLockActive(true);
+      }
+    } catch {
+      // Wake lock not supported or permission denied — silently ignore
+    }
+  };
+
+  const releaseWakeLock = () => {
+    if (wakeLockRef.current) {
+      wakeLockRef.current.release().catch(() => undefined);
+      wakeLockRef.current = null;
+      setWakeLockActive(false);
+    }
+  };
+
+  // Warn user if they background the app while tracking
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (!isTracking) return;
+      if (document.hidden && !backgroundWarnedRef.current) {
+        backgroundWarnedRef.current = true;
+        // We can't show a real notification, so set a state flag
+        // The UI shows a persistent warning banner instead
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+  }, [isTracking]);
+
+  // Cleanup on unmount: clear GPS watch and release wake lock
   useEffect(() => {
     return () => {
       if (watchIdRef.current !== null) {
         navigator.geolocation.clearWatch(watchIdRef.current);
       }
+      releaseWakeLock();
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleAddBill = () => {
@@ -821,24 +972,25 @@ const Tracker: React.FC<TrackerProps> = ({
 
   return (
     <>
-      <div className="space-y-8 pb-24 pt-4 animate-in slide-in-from-bottom-4">
-        <div className="flex bg-white dark:bg-slate-900 p-1.5 rounded-2xl shadow-lg border border-slate-100 dark:border-slate-800">
-          <button 
-            onClick={() => setActiveCategory('travel')} 
-            className={`flex-1 py-3.5 rounded-xl font-black text-xs uppercase tracking-widest transition-all ${activeCategory === 'travel' ? 'bg-slate-900 dark:bg-emerald-500 text-white shadow-lg' : 'text-slate-400'}`}
+      <div className="space-y-6 pb-24 pt-4">
+        {/* Top Toggle */}
+        <div className="flex bg-white dark:bg-slate-900 p-1.5 rounded-3xl shadow-lg border border-slate-100 dark:border-slate-800 animate-fade-in-up opacity-0" style={{ animationDelay: '0ms' }}>
+          <button
+            onClick={() => setActiveCategory('travel')}
+            className={`flex-1 py-3.5 rounded-2xl font-black text-xs uppercase tracking-widest transition-all duration-300 ease-[cubic-bezier(0.175,0.885,0.32,1.275)] ${activeCategory === 'travel' ? 'bg-slate-900 dark:bg-emerald-500 text-white shadow-lg scale-100' : 'text-slate-400 scale-95 hover:scale-100 hover:text-slate-600 dark:hover:text-slate-300'}`}
           >
             <i className="fa-solid fa-car-side mr-2"></i> Travel
           </button>
-          <button 
-            onClick={() => setActiveCategory('electricity')} 
-            className={`flex-1 py-3.5 rounded-xl font-black text-xs uppercase tracking-widest transition-all ${activeCategory === 'electricity' ? 'bg-slate-900 dark:bg-emerald-500 text-white shadow-lg' : 'text-slate-400'}`}
+          <button
+            onClick={() => setActiveCategory('electricity')}
+            className={`flex-1 py-3.5 rounded-2xl font-black text-xs uppercase tracking-widest transition-all duration-300 ease-[cubic-bezier(0.175,0.885,0.32,1.275)] ${activeCategory === 'electricity' ? 'bg-slate-900 dark:bg-emerald-500 text-white shadow-lg scale-100' : 'text-slate-400 scale-95 hover:scale-100 hover:text-slate-600 dark:hover:text-slate-300'}`}
           >
             <i className="fa-solid fa-bolt mr-2"></i> Energy
           </button>
         </div>
 
         {activeCategory === 'travel' ? (
-          <div className="glass p-6 rounded-[2rem] shadow-lg space-y-6 bg-white dark:bg-slate-900/40 border-white/5">
+          <div className="glass p-6 rounded-[2.5rem] shadow-xl space-y-6 bg-white dark:bg-slate-900/40 border-white/5 animate-fade-in-up opacity-0" style={{ animationDelay: '100ms' }}>
             <div className="flex items-center justify-between mb-2">
               <h3 className="text-[11px] font-black text-slate-400 uppercase tracking-[0.16em]">Select Transport</h3>
               <button
@@ -856,22 +1008,20 @@ const Tracker: React.FC<TrackerProps> = ({
                   setTrackingMode('manual');
                   if (isTracking) stopAutoTracking();
                 }}
-                className={`flex-1 py-3 rounded-xl font-black text-xs uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${
-                  trackingMode === 'manual' 
-                    ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-lg' 
-                    : 'text-slate-400'
-                }`}
+                className={`flex-1 py-3 rounded-xl font-black text-xs uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${trackingMode === 'manual'
+                  ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-lg'
+                  : 'text-slate-400'
+                  }`}
               >
                 <i className="fa-solid fa-keyboard"></i>
                 Manual
               </button>
               <button
                 onClick={() => setTrackingMode('automatic')}
-                className={`flex-1 py-3 rounded-xl font-black text-xs uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${
-                  trackingMode === 'automatic' 
-                    ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-lg' 
-                    : 'text-slate-400'
-                }`}
+                className={`flex-1 py-3 rounded-xl font-black text-xs uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${trackingMode === 'automatic'
+                  ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-lg'
+                  : 'text-slate-400'
+                  }`}
               >
                 <i className="fa-solid fa-location-crosshairs"></i>
                 Automatic
@@ -880,7 +1030,7 @@ const Tracker: React.FC<TrackerProps> = ({
 
             {/* VEHICLE CHIPS (BASE + CUSTOM) */}
             <div className="flex gap-2 overflow-x-auto overflow-y-visible pb-2 no-scrollbar">
-              {customVehicles.length === 0 && (
+              {allVehicleChips.length === 0 && (
                 <div className="w-full">
                   <div className="flex items-center justify-between gap-3 p-4 bg-slate-50 dark:bg-slate-800/60 rounded-2xl border border-slate-200 dark:border-slate-700">
                     <div>
@@ -891,25 +1041,40 @@ const Tracker: React.FC<TrackerProps> = ({
                     </div>
                     <button
                       onClick={() => setShowCustomVehicleModal(true)}
-                      className="px-3 py-2 bg-emerald-500 text-white text-[10px] font-black uppercase tracking-[0.12em] rounded-xl shadow-lg"
+                      className="px-4 py-2 bg-emerald-500 text-white text-[10px] font-black uppercase tracking-[0.12em] rounded-xl shadow-lg hover:bg-emerald-400 hover:scale-105 active:scale-95 transition-all duration-300"
                     >
                       Add
                     </button>
                   </div>
                 </div>
               )}
-              {vehicleChips.map((chip) => (
+              {baseVehicleChips.map((chip) => (
+                <div key={chip.key} className="relative flex-shrink-0 group">
+                  <button
+                    onClick={() => {
+                      setVehicle(chip.vehicleType);
+                      setSelectedCustomVehicle('');
+                    }}
+                    className={`px-5 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2 ${vehicle === chip.vehicleType && selectedCustomVehicle === ''
+                      ? 'bg-emerald-600 text-white shadow-lg'
+                      : 'bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-400'
+                      }`}
+                  >
+                    <i className={`fa-solid ${chip.icon}`}></i> {chip.label}
+                  </button>
+                </div>
+              ))}
+              {customVehicleChips.map((chip) => (
                 <div key={chip.key} className="relative flex-shrink-0 group">
                   <button
                     onClick={() => {
                       setVehicle('Custom');
                       setSelectedCustomVehicle(chip.customName);
                     }}
-                    className={`px-5 py-3 pr-10 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2 ${
-                      vehicle === 'Custom' && selectedCustomVehicle === chip.customName
-                        ? 'bg-emerald-600 text-white shadow-lg'
-                        : 'bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-400'
-                    }`}
+                    className={`px-5 py-3 pr-10 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2 ${vehicle === 'Custom' && selectedCustomVehicle === chip.customName
+                      ? 'bg-emerald-600 text-white shadow-lg'
+                      : 'bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-400'
+                      }`}
                   >
                     <i className={`fa-solid ${chip.icon}`}></i> {chip.label}
                   </button>
@@ -924,11 +1089,10 @@ const Tracker: React.FC<TrackerProps> = ({
                         }
                       }
                     }}
-                    className={`absolute right-2 top-1/2 -translate-y-1/2 w-5 h-5 bg-white text-rose-500 rounded-md flex items-center justify-center shadow-md border border-rose-100 transition-opacity ${
-                      vehicle === 'Custom' && selectedCustomVehicle === chip.customName
-                        ? 'opacity-100'
-                        : 'opacity-0 pointer-events-none'
-                    }`}
+                    className={`absolute right-2 top-1/2 -translate-y-1/2 w-5 h-5 bg-white text-rose-500 rounded-md flex items-center justify-center shadow-md border border-rose-100 transition-opacity ${vehicle === 'Custom' && selectedCustomVehicle === chip.customName
+                      ? 'opacity-100'
+                      : 'opacity-0 pointer-events-none'
+                      }`}
                     title={`Delete ${chip.label}`}
                   >
                     <i className="fa-solid fa-trash fa-xs"></i>
@@ -936,18 +1100,24 @@ const Tracker: React.FC<TrackerProps> = ({
                 </div>
               ))}
             </div>
-            
+
             {/* DISTANCE INPUT - Different for Manual vs Automatic */}
             {trackingMode === 'manual' ? (
               <div className="relative">
-                <input 
-                  type="number" 
-                  value={distance} 
-                  onChange={(e) => setDistance(e.target.value)} 
+                <input
+                  type="number"
+                  value={distance}
+                  onChange={(e) => setDistance(e.target.value)}
                   onKeyDown={(e) => handleKeyDown(e, handleAddTrip)}
-                  placeholder="Distance (km)" 
-                  className="w-full bg-slate-50 dark:bg-slate-800 rounded-2xl p-6 text-3xl font-black text-center text-slate-800 dark:text-white outline-none focus:ring-4 focus:ring-emerald-500/10" 
+                  placeholder="Distance (km)"
+                  className="w-full bg-slate-50 dark:bg-slate-800 rounded-2xl p-6 text-3xl font-black text-center text-slate-800 dark:text-white outline-none focus:ring-4 focus:ring-emerald-500/10"
                 />
+                <div className="absolute left-6 top-1/2 -translate-y-1/2 flex items-center gap-3" title="Auto-fill by uploading photo of Odometer">
+                  <label className={`cursor-pointer w-10 h-10 rounded-full flex items-center justify-center transition-all shadow-md ${scanningOdometer ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-500 animate-pulse' : 'bg-slate-200 dark:bg-slate-700 hover:bg-emerald-500 hover:text-white text-slate-500 dark:text-slate-400'}`}>
+                    {scanningOdometer ? <i className="fa-solid fa-spinner animate-spin fa-lg"></i> : <i className="fa-solid fa-camera fa-lg"></i>}
+                    <input type="file" accept="image/*" capture="environment" className="hidden" onChange={handleOdometerUpload} disabled={scanningOdometer} />
+                  </label>
+                </div>
                 <div className="absolute right-6 top-1/2 -translate-y-1/2 text-slate-400 font-black text-xs uppercase">km</div>
               </div>
             ) : (
@@ -977,7 +1147,7 @@ const Tracker: React.FC<TrackerProps> = ({
                 ) : (
                   <div className="p-6 bg-slate-900 dark:bg-emerald-500 text-white rounded-2xl text-center animate-in zoom-in-95">
                     <div className="text-[10px] font-black uppercase tracking-widest mb-2 opacity-80 flex items-center justify-center gap-2">
-                      <i className="fa-solid fa-satellite-dish animate-pulse"></i> 
+                      <i className="fa-solid fa-satellite-dish animate-pulse"></i>
                       Live Tracking
                     </div>
                     <div className="text-5xl font-black">{currentDistance.toFixed(2)}</div>
@@ -990,33 +1160,32 @@ const Tracker: React.FC<TrackerProps> = ({
                 )}
               </div>
             )}
-            
+
             {vehicle === 'Custom' && selectedCustomVehicle && null}
-            
-            
+
+
             {/* ACTION BUTTON */}
             {trackingMode === 'manual' ? (
-              <button 
-                onClick={handleAddTrip} 
+              <button
+                onClick={handleAddTrip}
                 className="w-full bg-slate-900 dark:bg-emerald-500 text-white py-4 px-5 rounded-2xl font-black uppercase tracking-[0.18em] shadow-xl active:scale-95 transition-transform"
               >
                 Log Trip
               </button>
             ) : (
               !isTracking ? (
-                <button 
+                <button
                   onClick={startAutoTracking}
                   disabled={isMatchingRoute}
-                  className={`w-full bg-emerald-500 text-white py-4 px-5 rounded-2xl font-black uppercase tracking-[0.18em] shadow-xl active:scale-95 transition-transform flex items-center justify-center gap-3 ${
-                    isMatchingRoute ? 'opacity-60 cursor-not-allowed' : ''
-                  }`}
+                  className={`w-full bg-emerald-500 text-white py-4 px-5 rounded-2xl font-black uppercase tracking-[0.18em] shadow-xl active:scale-95 transition-transform flex items-center justify-center gap-3 ${isMatchingRoute ? 'opacity-60 cursor-not-allowed' : ''
+                    }`}
                 >
                   <i className="fa-solid fa-play"></i>
                   Start Tracking
                 </button>
               ) : (
-                <button 
-                  onClick={stopAutoTracking} 
+                <button
+                  onClick={stopAutoTracking}
                   className="w-full bg-rose-500 text-white py-4 px-5 rounded-2xl font-black uppercase tracking-[0.18em] shadow-xl active:scale-95 transition-transform flex items-center justify-center gap-3"
                 >
                   <i className="fa-solid fa-stop"></i>
@@ -1027,66 +1196,66 @@ const Tracker: React.FC<TrackerProps> = ({
           </div>
         ) : (
           <div className="space-y-4">
-            <div className="glass p-6 rounded-[2rem] space-y-5 bg-white dark:bg-slate-900/40 border-white/5">
+            <div className="glass p-6 rounded-[2.5rem] space-y-5 bg-white dark:bg-slate-900/40 border-white/5 animate-fade-in-up opacity-0" style={{ animationDelay: '100ms' }}>
               <div className="flex gap-2 mb-2">
-                <select 
-                  value={selectedMonth} 
-                  onChange={(e) => setSelectedMonth(e.target.value)} 
+                <select
+                  value={selectedMonth}
+                  onChange={(e) => setSelectedMonth(e.target.value)}
                   className="flex-1 bg-slate-50 dark:bg-slate-800 p-4 rounded-xl text-xs font-black uppercase tracking-widest outline-none border-none text-slate-500 dark:text-slate-400"
                 >
                   {months.map(m => <option key={m} value={m}>{m}</option>)}
                 </select>
               </div>
               <div className="relative">
-                <input 
-                  type="number" 
-                  value={kwhInput} 
-                  onChange={(e) => setKwhInput(e.target.value)} 
+                <input
+                  type="number"
+                  value={kwhInput}
+                  onChange={(e) => setKwhInput(e.target.value)}
                   onKeyDown={(e) => handleKeyDown(e, handleAddBill)}
-                  placeholder="Consumption" 
-                  className="w-full bg-slate-50 dark:bg-slate-800 p-6 rounded-2xl text-2xl font-black text-center text-slate-800 dark:text-white outline-none" 
+                  placeholder="Consumption"
+                  className="w-full bg-slate-50 dark:bg-slate-800 p-6 rounded-2xl text-2xl font-black text-center text-slate-800 dark:text-white outline-none"
                 />
                 <div className="absolute right-6 top-1/2 -translate-y-1/2 text-slate-400 font-black text-xs uppercase">kWh</div>
               </div>
-              <button 
-                onClick={handleAddBill} 
+              <button
+                onClick={handleAddBill}
                 className="w-full bg-slate-900 dark:bg-emerald-500 text-white py-4 px-5 rounded-2xl font-black uppercase tracking-[0.18em] shadow-lg"
               >
                 Save Manually
               </button>
             </div>
-            
-            <div className="glass p-10 rounded-[2rem] border-2 border-dashed border-slate-200 dark:border-slate-800 flex flex-col items-center justify-center bg-white/30 dark:bg-slate-900/20">
-               {scanning ? (
-                 <div className="flex flex-col items-center gap-2">
-                   <div className="w-10 h-10 border-4 border-emerald-500/20 border-t-emerald-500 rounded-full animate-spin"></div>
-                   <span className="text-[10px] font-black text-emerald-500 uppercase">AI Regional Sync...</span>
-                 </div>
-               ) : (
-                 <label className="flex flex-col items-center cursor-pointer text-center">
-                    <div className="w-16 h-16 bg-white dark:bg-slate-800 rounded-full flex items-center justify-center text-slate-400 mb-4 shadow-lg">
-                      <i className="fa-solid fa-camera text-2xl"></i>
-                    </div>
-                    <span className="text-[11px] font-black text-slate-500 uppercase tracking-[0.16em]">Scan Utility Bill</span>
-                    <input type="file" accept="image/*" className="hidden" onChange={handleBillUpload} />
-                 </label>
-               )}
+
+            <div className="glass p-10 rounded-[2.5rem] border-2 border-dashed border-slate-200 dark:border-slate-800 flex flex-col items-center justify-center bg-white/30 dark:bg-slate-900/20 animate-fade-in-up opacity-0 interactive" style={{ animationDelay: '200ms' }}>
+              {scanning ? (
+                <div className="flex flex-col items-center gap-2">
+                  <div className="w-10 h-10 border-4 border-emerald-500/20 border-t-emerald-500 rounded-full animate-spin"></div>
+                  <span className="text-[10px] font-black text-emerald-500 uppercase">AI Regional Sync...</span>
+                </div>
+              ) : (
+                <label className="flex flex-col items-center cursor-pointer text-center">
+                  <div className="w-16 h-16 bg-white dark:bg-slate-800 rounded-full flex items-center justify-center text-slate-400 mb-4 shadow-lg">
+                    <i className="fa-solid fa-camera text-2xl"></i>
+                  </div>
+                  <span className="text-[11px] font-black text-slate-500 uppercase tracking-[0.16em]">Scan Utility Bill</span>
+                  <input type="file" accept="image/*" className="hidden" onChange={handleBillUpload} />
+                </label>
+              )}
             </div>
           </div>
         )}
 
-        <div className="space-y-4">
+        <div className="space-y-4 animate-fade-in-up opacity-0" style={{ animationDelay: '200ms' }}>
           <div className="flex items-center justify-between ml-1">
             <h3 className="text-[11px] font-black text-slate-400 uppercase tracking-[0.16em]">Vault Activity</h3>
             <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-lg">
-              <button 
-                onClick={() => setActiveFeedTab('trips')} 
+              <button
+                onClick={() => setActiveFeedTab('trips')}
                 className={`px-3 py-1 text-[10px] font-black rounded-md uppercase transition-all ${activeFeedTab === 'trips' ? 'bg-white dark:bg-slate-700 text-slate-800 dark:text-white' : 'text-slate-400'}`}
               >
                 Trips
               </button>
-              <button 
-                onClick={() => setActiveFeedTab('utilities')} 
+              <button
+                onClick={() => setActiveFeedTab('utilities')}
                 className={`px-3 py-1 text-[10px] font-black rounded-md uppercase transition-all ${activeFeedTab === 'utilities' ? 'bg-white dark:bg-slate-700 text-slate-800 dark:text-white' : 'text-slate-400'}`}
               >
                 Bills
@@ -1100,143 +1269,143 @@ const Tracker: React.FC<TrackerProps> = ({
               const today = new Date().toISOString().split('T')[0];
               return tripDate === today;
             }).length === 0 ? <div className="p-8 text-center text-[11px] font-bold text-slate-400 uppercase">No Trips Today</div> :
-            <div className="space-y-3">
-              {trips.filter(t => {
-                const tripDate = new Date(t.date).toISOString().split('T')[0];
-                const today = new Date().toISOString().split('T')[0];
-                return tripDate === today;
-              }).slice(0, 10).map(t => {
-                // Get the appropriate icon for the vehicle
-                const vehicleIcon = getTripIcon(t, customVehicles);
-                const { baselineStatus, statusLabel, message, badgeClass } = getEmissionSummary(
-                  t,
-                  customVehicles
-                );
-                const baselineMax = baselineStatus
-                  ? Math.max(baselineStatus.actualKgPerKm, baselineStatus.baselineKgPerKm)
-                  : 0;
-                
-                return (
-                <div key={t.id} className="glass p-4 rounded-2xl flex items-center justify-between group bg-white dark:bg-slate-900/40">
-                  <div className="flex items-center gap-4">
-                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${t.vehicle === 'Custom' ? 'bg-amber-500/10 text-amber-500' : 'bg-emerald-500/10 text-emerald-500'}`}>
-                      <i className={`fa-solid ${vehicleIcon}`}></i>
-                    </div>
-                    <div>
-                      <h4 className="font-black text-slate-800 dark:text-white text-xs">
-                        {t.vehicle === 'Custom' ? t.customVehicleName : t.vehicle} Trip
-                        {t.vehicle === 'Custom' && (
-                          <i className="fa-solid fa-star text-amber-500 text-[8px] ml-1"></i>
-                        )}
-                      </h4>
-                      <p className="text-[11px] font-bold text-slate-400 uppercase">
-                        {t.distance} km | {t.co2.toFixed(2)} kg CO2 | {new Date(t.date).toLocaleDateString()}
-                        {baselineStatus?.isAbove && (
-                          <span className="ml-2 text-rose-500 font-black">
-                            Above baseline (+{Math.max(0, Math.round(baselineStatus.percentOver * 100))}%)
-                          </span>
-                        )}
-                      </p>
-                      <div className="mt-2 flex items-center gap-2">
-                        <span className={`px-2 py-1 rounded-full text-[10px] font-black uppercase ${badgeClass}`}>
-                          {statusLabel}
-                        </span>
-                        <span className="text-[11px] text-slate-500 dark:text-slate-300 font-semibold">
-                          Emission: {t.co2.toFixed(2)} kg CO2
-                        </span>
-                      </div>
-                      <p className="text-[11px] text-slate-500 dark:text-slate-300 font-medium mt-1">
-                        {message}
-                      </p>
-                      {baselineStatus ? (
-                        <div className="mt-2 space-y-1">
-                            <div className="flex items-center gap-2">
-                              <span className="w-14 text-[10px] font-black uppercase text-slate-400">
-                                {baselineStatus.isEstimated ? 'Baseline*' : 'Baseline'}
+              <div className="space-y-3">
+                {trips.filter(t => {
+                  const tripDate = new Date(t.date).toISOString().split('T')[0];
+                  const today = new Date().toISOString().split('T')[0];
+                  return tripDate === today;
+                }).slice(0, 10).map(t => {
+                  // Get the appropriate icon for the vehicle
+                  const vehicleIcon = getTripIcon(t, customVehicles);
+                  const { baselineStatus, statusLabel, message, badgeClass } = getEmissionSummary(
+                    t,
+                    customVehicles
+                  );
+                  const baselineMax = baselineStatus
+                    ? Math.max(baselineStatus.actualKgPerKm, baselineStatus.baselineKgPerKm)
+                    : 0;
+
+                  return (
+                    <div key={t.id} className="glass p-4 rounded-2xl flex items-center justify-between group bg-white dark:bg-slate-900/40">
+                      <div className="flex items-center gap-4">
+                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${t.vehicle === 'Custom' ? 'bg-amber-500/10 text-amber-500' : 'bg-emerald-500/10 text-emerald-500'}`}>
+                          <i className={`fa-solid ${vehicleIcon}`}></i>
+                        </div>
+                        <div>
+                          <h4 className="font-black text-slate-800 dark:text-white text-xs">
+                            {t.vehicle === 'Custom' ? t.customVehicleName : t.vehicle} Trip
+                            {t.vehicle === 'Custom' && (
+                              <i className="fa-solid fa-star text-amber-500 text-[8px] ml-1"></i>
+                            )}
+                          </h4>
+                          <p className="text-[11px] font-bold text-slate-400 uppercase">
+                            {t.distance} km | {t.co2.toFixed(2)} kg CO2 | {new Date(t.date).toLocaleDateString()}
+                            {baselineStatus?.isAbove && (
+                              <span className="ml-2 text-rose-500 font-black">
+                                Above baseline (+{Math.max(0, Math.round(baselineStatus.percentOver * 100))}%)
                               </span>
-                            <div className="flex-1 bg-slate-100 dark:bg-slate-800 rounded-full h-2">
-                              <div
-                                className="h-2 rounded-full bg-slate-400"
-                                style={{
-                                  width: `${baselineMax > 0 ? (baselineStatus.baselineKgPerKm / baselineMax) * 100 : 0}%`
-                                }}
-                              ></div>
-                            </div>
-                            <span className="w-10 text-[10px] font-black text-slate-400">
-                              {baselineStatus.baselineKgPerKm.toFixed(2)}
+                            )}
+                          </p>
+                          <div className="mt-2 flex items-center gap-2">
+                            <span className={`px-2 py-1 rounded-full text-[10px] font-black uppercase ${badgeClass}`}>
+                              {statusLabel}
+                            </span>
+                            <span className="text-[11px] text-slate-500 dark:text-slate-300 font-semibold">
+                              Emission: {t.co2.toFixed(2)} kg CO2
                             </span>
                           </div>
-                          {baselineStatus.isEstimated && (
-                            <div className="text-[9px] font-black uppercase text-slate-400">
-                              *Estimated baseline
+                          <p className="text-[11px] text-slate-500 dark:text-slate-300 font-medium mt-1">
+                            {message}
+                          </p>
+                          {baselineStatus ? (
+                            <div className="mt-2 space-y-1">
+                              <div className="flex items-center gap-2">
+                                <span className="w-14 text-[10px] font-black uppercase text-slate-400">
+                                  {baselineStatus.isEstimated ? 'Baseline*' : 'Baseline'}
+                                </span>
+                                <div className="flex-1 bg-slate-100 dark:bg-slate-800 rounded-full h-2">
+                                  <div
+                                    className="h-2 rounded-full bg-slate-400"
+                                    style={{
+                                      width: `${baselineMax > 0 ? (baselineStatus.baselineKgPerKm / baselineMax) * 100 : 0}%`
+                                    }}
+                                  ></div>
+                                </div>
+                                <span className="w-10 text-[10px] font-black text-slate-400">
+                                  {baselineStatus.baselineKgPerKm.toFixed(2)}
+                                </span>
+                              </div>
+                              {baselineStatus.isEstimated && (
+                                <div className="text-[9px] font-black uppercase text-slate-400">
+                                  *Estimated baseline
+                                </div>
+                              )}
+                              <div className="flex items-center gap-2">
+                                <span className="w-14 text-[10px] font-black uppercase text-slate-400">Actual</span>
+                                <div className="flex-1 bg-slate-100 dark:bg-slate-800 rounded-full h-2">
+                                  <div
+                                    className={`h-2 rounded-full ${baselineStatus.isAbove ? 'bg-rose-500' : 'bg-emerald-500'
+                                      }`}
+                                    style={{
+                                      width: `${baselineMax > 0 ? (baselineStatus.actualKgPerKm / baselineMax) * 100 : 0}%`
+                                    }}
+                                  ></div>
+                                </div>
+                                <span className="w-10 text-[10px] font-black text-slate-400">
+                                  {baselineStatus.actualKgPerKm.toFixed(2)}
+                                </span>
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="mt-2 text-[10px] font-black uppercase text-slate-400">
+                              Baseline not configured
                             </div>
                           )}
-                          <div className="flex items-center gap-2">
-                            <span className="w-14 text-[10px] font-black uppercase text-slate-400">Actual</span>
-                            <div className="flex-1 bg-slate-100 dark:bg-slate-800 rounded-full h-2">
-                              <div
-                                className={`h-2 rounded-full ${
-                                  baselineStatus.isAbove ? 'bg-rose-500' : 'bg-emerald-500'
-                                }`}
-                                style={{
-                                  width: `${baselineMax > 0 ? (baselineStatus.actualKgPerKm / baselineMax) * 100 : 0}%`
-                                }}
-                              ></div>
-                            </div>
-                            <span className="w-10 text-[10px] font-black text-slate-400">
-                              {baselineStatus.actualKgPerKm.toFixed(2)}
-                            </span>
-                          </div>
                         </div>
-                      ) : (
-                        <div className="mt-2 text-[10px] font-black uppercase text-slate-400">
-                          Baseline not configured
-                        </div>
-                      )}
+                      </div>
+                      <button
+                        onClick={() => onDeleteTrip(t.id)}
+                        className="text-rose-500 p-2 opacity-0 group-hover:opacity-100 transition-opacity"
+                      >
+                        <i className="fa-solid fa-trash"></i>
+                      </button>
                     </div>
-                  </div>
-                  <button 
-                    onClick={() => onDeleteTrip(t.id)} 
-                    className="text-rose-500 p-2 opacity-0 group-hover:opacity-100 transition-opacity"
-                  >
-                    <i className="fa-solid fa-trash"></i>
-                  </button>
-                </div>
-              )})}
-            </div>
+                  )
+                })}
+              </div>
           ) : (
             bills.length === 0 ? <div className="p-8 text-center text-[11px] font-bold text-slate-400 uppercase">No Bills</div> :
-            <div className="space-y-3">
-              {bills.map(b => (
-                <div key={b.id} className="glass p-4 rounded-2xl flex items-center justify-between group bg-white dark:bg-slate-900/40 border-l-4 border-l-blue-500">
-                  <div className="flex items-center gap-4">
-                    <div className="w-10 h-10 rounded-xl bg-blue-500/10 flex items-center justify-center text-blue-500">
-                      <i className="fa-solid fa-bolt"></i>
+              <div className="space-y-3">
+                {bills.map(b => (
+                  <div key={b.id} className="glass p-4 rounded-2xl flex items-center justify-between group bg-white dark:bg-slate-900/40 border-l-4 border-l-blue-500">
+                    <div className="flex items-center gap-4">
+                      <div className="w-10 h-10 rounded-xl bg-blue-500/10 flex items-center justify-center text-blue-500">
+                        <i className="fa-solid fa-bolt"></i>
+                      </div>
+                      <div>
+                        <h4 className="font-black text-slate-800 dark:text-white text-xs">
+                          {b.month} Bill
+                          {b.isAnomalous && (
+                            <i className="fa-solid fa-exclamation-triangle text-amber-500 text-[8px] ml-1"></i>
+                          )}
+                        </h4>
+                        <p className="text-[11px] font-bold text-slate-400 uppercase">{b.units} kWh</p>
+                      </div>
                     </div>
-                    <div>
-                      <h4 className="font-black text-slate-800 dark:text-white text-xs">
-                        {b.month} Bill
-                        {b.isAnomalous && (
-                          <i className="fa-solid fa-exclamation-triangle text-amber-500 text-[8px] ml-1"></i>
-                        )}
-                      </h4>
-                      <p className="text-[11px] font-bold text-slate-400 uppercase">{b.units} kWh</p>
-                    </div>
+                    <button
+                      onClick={() => onDeleteBill(b.id)}
+                      className="text-rose-500 p-2 opacity-0 group-hover:opacity-100 transition-opacity"
+                    >
+                      <i className="fa-solid fa-trash"></i>
+                    </button>
                   </div>
-                  <button 
-                    onClick={() => onDeleteBill(b.id)} 
-                    className="text-rose-500 p-2 opacity-0 group-hover:opacity-100 transition-opacity"
-                  >
-                    <i className="fa-solid fa-trash"></i>
-                  </button>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
           )}
         </div>
 
-        <button 
-          onClick={onFinishDay} 
+        <button
+          onClick={onFinishDay}
           className="w-full bg-emerald-500 text-white py-4 px-5 rounded-[2rem] font-black text-sm uppercase tracking-[0.18em] shadow-xl flex items-center justify-center gap-4 active:scale-95 transition-transform mt-4"
         >
           ML Analysis <i className="fa-solid fa-magnifying-glass-chart"></i>
@@ -1249,7 +1418,7 @@ const Tracker: React.FC<TrackerProps> = ({
           <div className="bg-white dark:bg-slate-900 rounded-[2rem] p-6 max-w-md w-full shadow-xl animate-in zoom-in-95 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-xl font-black text-slate-800 dark:text-white">Add Custom Vehicle</h2>
-              <button 
+              <button
                 onClick={() => {
                   setShowCustomVehicleModal(false);
                   setCustomVehicleName('');
@@ -1262,6 +1431,9 @@ const Tracker: React.FC<TrackerProps> = ({
                   setCustomDrivingStyle('');
                   setCustomOdometerKm('');
                   setIsPredictingFactor(false);
+                  setPlateInput('');
+                  setPlateSource(null);
+                  setPlateError('');
                 }}
                 className="w-8 h-8 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-400 flex items-center justify-center"
               >
@@ -1270,6 +1442,74 @@ const Tracker: React.FC<TrackerProps> = ({
             </div>
 
             <div className="space-y-4">
+              {/* PLATE LOOKUP */}
+              <div className="bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-200 dark:border-emerald-500/30 rounded-2xl p-4">
+                <label className="text-[11px] font-black text-emerald-700 dark:text-emerald-400 uppercase tracking-[0.16em] mb-2 block flex items-center gap-1">
+                  <i className="fa-solid fa-magnifying-glass"></i> Auto-fill by Plate Number
+                </label>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={plateInput}
+                    onChange={(e) => { setPlateInput(e.target.value.toUpperCase()); setPlateError(''); setPlateSource(null); }}
+                    onKeyDown={(e) => e.key === 'Enter' && handlePlateLookup()}
+                    placeholder="e.g. MH12AB1234"
+                    maxLength={12}
+                    className="flex-1 bg-white dark:bg-slate-800 border border-emerald-200 dark:border-emerald-500/30 p-3 rounded-xl font-bold text-slate-800 dark:text-white outline-none focus:ring-2 focus:ring-emerald-500 text-sm uppercase tracking-widest"
+                  />
+                  <button
+                    onClick={handlePlateLookup}
+                    disabled={isLookingUpPlate}
+                    className="px-4 py-3 bg-emerald-500 text-white rounded-xl font-black text-xs uppercase tracking-widest disabled:opacity-60 flex items-center gap-2"
+                  >
+                    {isLookingUpPlate
+                      ? <><i className="fa-solid fa-spinner animate-spin"></i> Looking up...</>
+                      : <><i className="fa-solid fa-search"></i> Lookup</>}
+                  </button>
+                </div>
+                {plateSource === 'parivahan' && (
+                  <div className="mt-2 text-[10px] font-black uppercase tracking-widest flex items-center gap-1 text-emerald-600">
+                    <i className="fa-solid fa-satellite-dish" /> Parivahan data — fields auto-filled
+                  </div>
+                )}
+                {plateSource === 'not_found' && (
+                  <div className="mt-2 text-[10px] font-black uppercase tracking-widest flex items-center gap-1 text-amber-500">
+                    <i className="fa-solid fa-triangle-exclamation" /> Not in database — please fill manually
+                  </div>
+                )}
+                {plateError && (
+                  <div className="mt-2 text-[10px] font-black text-rose-500 uppercase tracking-widest">{plateError}</div>
+                )}
+                {/* Enriched RC data pills */}
+                {enrichedLookupData && plateSource === 'parivahan' && (
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {enrichedLookupData.vehicleAge !== undefined && enrichedLookupData.vehicleAge !== null && (
+                      <span className="px-2 py-1 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-[10px] font-black rounded-lg flex items-center gap-1">
+                        <i className="fa-solid fa-calendar text-slate-400" /> {enrichedLookupData.vehicleAge} yr{enrichedLookupData.vehicleAge !== 1 ? 's' : ''} old
+                      </span>
+                    )}
+                    {enrichedLookupData.emissionNorm && (
+                      <span className="px-2 py-1 bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400 text-[10px] font-black rounded-lg flex items-center gap-1">
+                        <i className="fa-solid fa-leaf" /> {enrichedLookupData.emissionNorm.toUpperCase()}
+                      </span>
+                    )}
+                    {enrichedLookupData.conditionHint && (
+                      <span className={`px-2 py-1 text-[10px] font-black rounded-lg flex items-center gap-1 ${enrichedLookupData.conditionHint === 'Good' ? 'bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400' :
+                        enrichedLookupData.conditionHint === 'Average' ? 'bg-amber-50 dark:bg-amber-500/10 text-amber-600 dark:text-amber-400' :
+                          'bg-rose-50 dark:bg-rose-500/10 text-rose-600 dark:text-rose-400'
+                        }`}>
+                        <i className="fa-solid fa-gauge" /> {enrichedLookupData.conditionHint} Condition
+                      </span>
+                    )}
+                    {enrichedLookupData.colour && (
+                      <span className="px-2 py-1 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-[10px] font-black rounded-lg flex items-center gap-1">
+                        <i className="fa-solid fa-palette text-slate-400" /> {enrichedLookupData.colour}
+                      </span>
+                    )}
+                  </div>
+                )}
+              </div>
+
               <div>
                 <label className="text-[11px] font-black text-slate-400 uppercase tracking-[0.16em] mb-2 block">
                   Vehicle Name *

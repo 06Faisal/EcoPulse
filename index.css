@@ -2,10 +2,12 @@
 @tailwind components;
 @tailwind utilities;
 
-/* EcoPulse AI - Enhanced Styles */
+/* EcoPulse AI - Premium UI Styles */
 
 :root {
   --accent-glow: 24, 90, 140;
+  --spring: cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 * {
@@ -18,17 +20,49 @@ body {
   font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  transition: background-color 0.3s ease, color 0.3s ease;
   line-height: 1.5;
+  transition: color 0.5s ease;
+}
+
+/* Animated Mesh Background */
+.mesh-bg {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  background-color: #f8fafc;
+  background-image: 
+    radial-gradient(at 40% 20%, hsla(158, 85%, 92%, 0.8) 0px, transparent 50%),
+    radial-gradient(at 80% 0%, hsla(189, 75%, 90%, 0.8) 0px, transparent 50%),
+    radial-gradient(at 0% 50%, hsla(160, 60%, 85%, 0.8) 0px, transparent 50%),
+    radial-gradient(at 80% 50%, hsla(190, 70%, 90%, 0.8) 0px, transparent 50%),
+    radial-gradient(at 0% 100%, hsla(158, 85%, 90%, 0.8) 0px, transparent 50%),
+    radial-gradient(at 80% 100%, hsla(189, 75%, 95%, 0.8) 0px, transparent 50%),
+    radial-gradient(at 0% 0%, hsla(160, 60%, 95%, 0.8) 0px, transparent 50%);
+  background-size: 200% 200%;
+  animation: mesh 15s ease-in-out infinite alternate;
+  transition: background-color 0.5s ease;
+}
+
+.dark .mesh-bg {
+  background-color: #020617;
+  background-image: 
+    radial-gradient(at 40% 20%, hsla(158, 85%, 15%, 0.6) 0px, transparent 50%),
+    radial-gradient(at 80% 0%, hsla(200, 75%, 12%, 0.6) 0px, transparent 50%),
+    radial-gradient(at 0% 50%, hsla(160, 60%, 15%, 0.6) 0px, transparent 50%),
+    radial-gradient(at 80% 50%, hsla(200, 70%, 12%, 0.6) 0px, transparent 50%),
+    radial-gradient(at 0% 100%, hsla(158, 85%, 18%, 0.6) 0px, transparent 50%),
+    radial-gradient(at 80% 100%, hsla(220, 75%, 12%, 0.6) 0px, transparent 50%),
+    radial-gradient(at 0% 0%, hsla(160, 60%, 12%, 0.6) 0px, transparent 50%);
 }
 
 /* Glass morphism effects */
 .glass {
-  background: rgba(255, 255, 255, 0.78);
-  backdrop-filter: blur(14px);
-  border: 1px solid rgba(148, 163, 184, 0.18);
-  box-shadow: 0 12px 28px -24px rgba(15, 23, 42, 0.35);
-  transition: all 0.3s ease;
+  background: rgba(255, 255, 255, 0.65);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.05);
+  transition: transform 0.3s var(--ease-out-expo), box-shadow 0.3s var(--ease-out-expo), border-color 0.3s ease, background 0.3s ease;
   position: relative;
   --glow-x: 50%;
   --glow-y: 50%;
@@ -36,9 +70,13 @@ body {
 }
 
 .dark .glass {
-  background: rgba(15, 23, 42, 0.72);
-  border: 1px solid rgba(148, 163, 184, 0.14);
-  box-shadow: 0 18px 34px -26px rgba(0, 0, 0, 0.6);
+  background: rgba(15, 23, 42, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 16px 40px -26px rgba(0, 0, 0, 0.8);
+}
+
+.glass.interactive:active {
+  transform: scale(0.975);
 }
 
 .glass::after {
@@ -303,11 +341,11 @@ select::placeholder {
 
 /* Prevent flash of unstyled content */
 html {
-  background-color: #f8fafc;
+  background-color: transparent;
 }
 
 html.dark {
-  background-color: #020617;
+  background-color: transparent;
   --accent-glow: 56, 189, 248;
 }
 

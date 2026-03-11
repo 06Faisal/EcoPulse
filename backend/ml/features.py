@@ -36,7 +36,12 @@ def build_daily_series(
 
     daily = pd.DataFrame({"date": all_days})
     daily["date"] = daily["date"].dt.date
-    daily = daily.merge(daily_travel, on="date", how="left").fillna({"co2": 0.0})
+    daily = daily.merge(daily_travel, on="date", how="left")
+    
+    # Intelligently handle missing data: interpolate small gaps (up to 3 days)
+    # to prevent artificially deflating rolling averages when users forget to log
+    daily["co2"] = daily["co2"].interpolate(method="linear", limit=3).fillna(0.0)
+    
     daily["energy"] = daily_energy
     daily["total"] = daily["co2"] + daily["energy"]
 

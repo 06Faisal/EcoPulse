@@ -7,12 +7,13 @@ from ml.storage import init_db, insert_trip, insert_bill
 from ml.train import train_user_model
 from ml.predict import predict_user_forecast
 from ml.cluster import cluster_users
+from ml.vehicle_lookup import lookup_via_parivahan
 
-app = FastAPI(title="EcoPulse ML Backend", version="1.0.0")
+app = FastAPI(title="EcoPulse ML Backend", version="2.0.0")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173"],
+    allow_origins=["http://localhost:5173", "http://localhost:5174"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -45,7 +46,7 @@ class PredictIn(BaseModel):
 
 @app.get("/api/health")
 def health():
-    return {"status": "ok"}
+    return {"status": "ok", "version": "2.0.0"}
 
 
 @app.post("/api/trips")
@@ -87,3 +88,53 @@ def cluster():
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
     return result
+
+
+@app.get("/api/vehicle-lookup")
+def vehicle_lookup(reg: str, useGemini: bool = False):
+    """
+    Look up Indian vehicle registration details.
+    Primary: Parivahan.gov.in (cached, enriched RC data).
+    Returns conditionHint, vehicleAge, emissionNorm, bodyType.
+    If Parivahan fails and useGemini=true, returns source='gemini_needed'
+    so the frontend can optionally fall back to Gemini AI lookup.
+    """
+    if not reg or len(reg.strip()) < 4:
+        raise HTTPException(status_code=400, detail="Invalid registration number.")
+
+    result = lookup_via_parivahan(reg.strip())
+    if result:
+        return result
+
+    # Parivahan failed
+    if useGemini:
+        return {
+            "make": "",
+            "model": "",
+            "fuelType": "",
+            "vehicleType": "",
+            "year": None,
+            "vehicleAge": None,
+            "emissionNorm": "",
+            "bodyType": "",
+            "colour": "",
+            "fitnessExpiry": "",
+            "conditionHint": "Average",
+            "source": "gemini_needed",
+        }
+
+    # Default: tell frontend to fill manually
+    return {
+        "make": "",
+        "model": "",
+        "fuelType": "",
+        "vehicleType": "",
+        "year": None,
+        "vehicleAge": None,
+        "emissionNorm": "",
+        "bodyType": "",
+        "colour": "",
+        "fitnessExpiry": "",
+        "conditionHint": "Average",
+        "source": "not_found",
+    }
