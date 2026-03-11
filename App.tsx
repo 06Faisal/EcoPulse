@@ -145,9 +145,9 @@ function App() {
     streak: 3,
     darkMode: false,
     customVehicles: [],
-    availableVehicles: ['Walking']
+    availableVehicles: []
   });
-  const [availableVehicles, setAvailableVehicles] = useState<VehicleType[]>(['Walking']);
+  const [availableVehicles, setAvailableVehicles] = useState<VehicleType[]>([]);
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
   const analysisInFlightRef = useRef(false);
 
@@ -389,7 +389,7 @@ function App() {
           ...data.profile,
           customVehicles: data.customVehicles
         });
-        setAvailableVehicles(data.profile.availableVehicles || ['Car', 'Bike', 'Bus', 'Train', 'Walking']);
+        setAvailableVehicles(data.profile.availableVehicles || []);
         if (AUTO_ANALYZE) {
           await runAnalysis({
             tripsOverride: seeded.trips,
