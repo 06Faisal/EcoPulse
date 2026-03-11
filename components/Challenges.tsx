@@ -19,7 +19,7 @@ const PRESET_CHALLENGES: Challenge[] = [
         startsAt: new Date().toISOString(),
         endsAt: new Date(Date.now() + 7 * 86400000).toISOString(),
         createdBy: 'EcoPulse',
-        participantCount: 142,
+        participantCount: 0,
         userJoined: false,
         userProgress: 0,
     },
@@ -33,7 +33,7 @@ const PRESET_CHALLENGES: Challenge[] = [
         startsAt: new Date().toISOString(),
         endsAt: new Date(Date.now() + 7 * 86400000).toISOString(),
         createdBy: 'EcoPulse',
-        participantCount: 89,
+        participantCount: 0,
         userJoined: false,
         userProgress: 0,
     },
@@ -47,7 +47,7 @@ const PRESET_CHALLENGES: Challenge[] = [
         startsAt: new Date().toISOString(),
         endsAt: new Date(Date.now() + 7 * 86400000).toISOString(),
         createdBy: 'EcoPulse',
-        participantCount: 203,
+        participantCount: 0,
         userJoined: false,
         userProgress: 0,
     },
@@ -61,7 +61,7 @@ const PRESET_CHALLENGES: Challenge[] = [
         startsAt: new Date().toISOString(),
         endsAt: new Date(Date.now() + 7 * 86400000).toISOString(),
         createdBy: 'EcoPulse',
-        participantCount: 67,
+        participantCount: 0,
         userJoined: false,
         userProgress: 0,
     },
@@ -157,13 +157,6 @@ const Challenges: React.FC<ChallengesProps> = ({ userId, userCO2ThisWeek }) => {
                     <div className="text-center">
                         <div className="text-2xl font-black text-slate-800 dark:text-white">{joined.length}</div>
                         <div className="text-[10px] text-slate-400 font-black uppercase tracking-widest">Active</div>
-                    </div>
-                    <div className="w-px bg-slate-200 dark:bg-slate-700" />
-                    <div className="text-center">
-                        <div className="text-2xl font-black text-slate-800 dark:text-white">
-                            {challenges.reduce((s, c) => s + (c.participantCount || 0), 0).toLocaleString()}
-                        </div>
-                        <div className="text-[10px] text-slate-400 font-black uppercase tracking-widest">Total Joined</div>
                     </div>
                 </div>
             </div>

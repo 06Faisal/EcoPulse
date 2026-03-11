@@ -73,7 +73,7 @@ const LocationSuggestions: React.FC<{ city: string; vehicle: string }> = ({ city
           <i className="fa-solid fa-location-dot text-emerald-500" />
           Alternatives Near You
           {city && (
-            <span className="px-2 py-0.5 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 rounded-full text-[10px] capitalize">
+            <span className="px-2 py-0.5 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 rounded-full text-[10px] capitalize truncate max-w-[80px]">
               {city}
             </span>
           )}

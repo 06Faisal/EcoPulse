@@ -19,11 +19,11 @@ const Navigation: React.FC<NavigationProps> = ({ activeTab, onTabChange }) => {
   const activeIndex = tabs.findIndex(t => t.id === activeTab);
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 z-50 pointer-events-none">
-      <nav className="mx-auto max-w-md bg-white dark:bg-slate-900 border-t border-slate-100 dark:border-slate-800 p-2 pb-safe flex justify-between items-center shadow-[0_-8px_30px_rgb(0,0,0,0.05)] pointer-events-auto relative overflow-hidden">
+    <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 w-[92%] max-w-md pointer-events-none">
+      <nav className="bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl border border-slate-200/50 dark:border-white/10 p-2 rounded-[2.5rem] flex justify-between items-center shadow-[0_20px_50px_rgba(0,0,0,0.15)] dark:shadow-[0_20px_50px_rgba(0,0,0,0.3)] pointer-events-auto relative overflow-hidden">
         {/* Sliding active pill background */}
         <div
-          className="absolute top-2 bottom-2 w-[calc((100%-16px)/6)] bg-emerald-500/15 dark:bg-emerald-500/20 rounded-[1.5rem] transition-transform duration-500 ease-[cubic-bezier(0.175,0.885,0.32,1.275)]"
+          className="absolute top-2 bottom-2 w-[calc((100%-16px)/6)] bg-emerald-500/10 dark:bg-emerald-500/20 rounded-[2rem] transition-transform duration-500 ease-[cubic-bezier(0.175,0.885,0.32,1.275)]"
           style={{ transform: `translateX(${activeIndex * 100}%)` }}
         />
 
@@ -31,13 +31,13 @@ const Navigation: React.FC<NavigationProps> = ({ activeTab, onTabChange }) => {
           <button
             key={tab.id}
             onClick={() => onTabChange(tab.id as NavigationProps['activeTab'])}
-            className={`relative z-10 flex flex-col items-center justify-center w-full py-2 gap-1 transition-colors duration-300 rounded-2xl interactive ${activeTab === tab.id
-              ? 'text-emerald-600 dark:text-emerald-400 font-bold'
-              : 'text-slate-400 dark:text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 font-medium'
+            className={`relative z-10 flex flex-col items-center justify-center w-full py-2.5 gap-1 transition-all duration-300 rounded-2xl interactive active:scale-90 ${activeTab === tab.id
+              ? 'text-emerald-600 dark:text-emerald-400 font-black'
+              : 'text-slate-400 dark:text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 font-bold'
               }`}
           >
-            <i className={`fa-solid ${tab.icon} transition-transform duration-500 ease-[cubic-bezier(0.175,0.885,0.32,1.275)] ${activeTab === tab.id ? 'scale-110 text-lg shadow-emerald-500/20 drop-shadow-md' : 'text-base'}`}></i>
-            <span className="text-[9px] uppercase tracking-[0.1em]">{tab.label}</span>
+            <i className={`fa-solid ${tab.icon} transition-all duration-500 ease-[cubic-bezier(0.175,0.885,0.32,1.275)] ${activeTab === tab.id ? 'scale-110 text-lg drop-shadow-[0_0_8px_rgba(16,185,129,0.3)]' : 'text-base'}`}></i>
+            <span className="text-[8px] uppercase tracking-[0.16em] font-black">{tab.label}</span>
           </button>
         ))}
       </nav>

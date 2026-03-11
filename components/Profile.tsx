@@ -512,29 +512,75 @@ const Profile: React.FC<ProfileProps> = ({ user, trips, bills = [], onUpdateProf
               {rankings && rankings.length > 0 ? 'Global Leaderboard' : 'Your Rank'}
             </h3>
             <div className="glass rounded-[2.5rem] overflow-hidden border-white/5 shadow-lg">
-              {resolvedRankings.map((r, i) => (
-                <div
-                  key={i}
-                  className={`flex items-center justify-between p-5 border-b border-slate-50 dark:border-slate-800/50 last:border-none ${r.isUser ? 'bg-emerald-500/10' : 'bg-transparent'}`}
-                >
-                  <div className="flex items-center gap-4">
-                    <span className="text-[10px] font-black w-8 text-center">
-                      {r.rank === 1 ? '🥇' : r.rank === 2 ? '🥈' : r.rank === 3 ? '🥉' : (
-                        <span className={r.rank <= 3 ? 'text-amber-500' : 'text-slate-400'}>#{r.rank}</span>
-                      )}
-                    </span>
-                    <div className="w-10 h-10 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-500 dark:text-slate-400 border border-white/10 shadow-inner">
-                      <i className={`fa-solid ${r.avatar}`} />
-                    </div>
-                    <span className={`text-sm tracking-tight ${r.isUser ? 'font-black text-slate-800 dark:text-white' : 'font-bold text-slate-600 dark:text-slate-300'}`}>
-                      {r.name}
-                    </span>
-                  </div>
-                  <span className="text-[10px] font-black text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-3 py-1.5 rounded-xl">
-                    {r.points.toLocaleString()} pts
-                  </span>
-                </div>
-              ))}
+              {(() => {
+                const top5 = resolvedRankings.slice(0, 5);
+                const userEntry = resolvedRankings.find(r => r.isUser);
+                const userIdx = resolvedRankings.findIndex(r => r.isUser);
+                
+                const displayList = [...top5];
+                let showDots = false;
+                let showUserAtBottom = false;
+
+                if (userIdx >= 5) {
+                  showDots = true;
+                  if (userEntry) displayList.push(userEntry);
+                }
+
+                return (
+                  <>
+                    {top5.map((r, i) => (
+                      <div
+                        key={`top-${i}`}
+                        className={`flex items-center justify-between p-5 border-b border-slate-50 dark:border-slate-800/50 last:border-none ${r.isUser ? 'bg-emerald-500/10' : 'bg-transparent'}`}
+                      >
+                        <div className="flex items-center gap-4">
+                          <span className="text-[10px] font-black w-8 text-center">
+                            {r.rank === 1 ? '🥇' : r.rank === 2 ? '🥈' : r.rank === 3 ? '🥉' : (
+                              <span className={r.rank <= 3 ? 'text-amber-500' : 'text-slate-400'}>#{r.rank}</span>
+                            )}
+                          </span>
+                          <div className="w-10 h-10 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-500 dark:text-slate-400 border border-white/10 shadow-inner">
+                            <i className={`fa-solid ${r.avatar}`} />
+                          </div>
+                          <span className={`text-sm tracking-tight ${r.isUser ? 'font-black text-slate-800 dark:text-white' : 'font-bold text-slate-600 dark:text-slate-300'}`}>
+                            {r.name}
+                          </span>
+                        </div>
+                        <span className="text-[10px] font-black text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-3 py-1.5 rounded-xl">
+                          {r.points.toLocaleString()} pts
+                        </span>
+                      </div>
+                    ))}
+                    
+                    {showDots && (
+                      <div className="flex justify-center p-2 text-slate-400">
+                        <i className="fa-solid fa-ellipsis-vertical" />
+                      </div>
+                    )}
+
+                    {userIdx >= 5 && userEntry && (
+                      <div
+                        className="flex items-center justify-between p-5 bg-emerald-500/10"
+                      >
+                        <div className="flex items-center gap-4">
+                          <span className="text-[10px] font-black w-8 text-center text-slate-400">
+                            #{userEntry.rank}
+                          </span>
+                          <div className="w-10 h-10 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-500 dark:text-slate-400 border border-white/10 shadow-inner">
+                            <i className={`fa-solid ${userEntry.avatar}`} />
+                          </div>
+                          <span className="text-sm tracking-tight font-black text-slate-800 dark:text-white">
+                            {userEntry.name}
+                          </span>
+                        </div>
+                        <span className="text-[10px] font-black text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-3 py-1.5 rounded-xl">
+                          {userEntry.points.toLocaleString()} pts
+                        </span>
+                      </div>
+                    )}
+                  </>
+                );
+              })()}
             </div>
           </div>
         )}

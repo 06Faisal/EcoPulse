@@ -145,9 +145,9 @@ function App() {
     streak: 3,
     darkMode: false,
     customVehicles: [],
-    availableVehicles: ['Car', 'Bike', 'Bus', 'Train', 'Walking']
+    availableVehicles: ['Walking']
   });
-  const [availableVehicles, setAvailableVehicles] = useState<VehicleType[]>(['Car', 'Bike', 'Bus', 'Train', 'Walking']);
+  const [availableVehicles, setAvailableVehicles] = useState<VehicleType[]>(['Walking']);
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
   const analysisInFlightRef = useRef(false);
 

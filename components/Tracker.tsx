@@ -1229,7 +1229,7 @@ const Tracker: React.FC<TrackerProps> = ({
               {scanning ? (
                 <div className="flex flex-col items-center gap-2">
                   <div className="w-10 h-10 border-4 border-emerald-500/20 border-t-emerald-500 rounded-full animate-spin"></div>
-                  <span className="text-[10px] font-black text-emerald-500 uppercase">AI Regional Sync...</span>
+                  <span className="text-[10px] font-black text-emerald-500 uppercase truncate max-w-[150px]">AI Regional Sync...</span>
                 </div>
               ) : (
                 <label className="flex flex-col items-center cursor-pointer text-center">
@@ -1459,7 +1459,7 @@ const Tracker: React.FC<TrackerProps> = ({
                     onKeyDown={(e) => e.key === 'Enter' && handlePlateLookup()}
                     placeholder="e.g. MH12AB1234"
                     maxLength={12}
-                    className="flex-1 bg-white dark:bg-slate-800 border border-emerald-200 dark:border-emerald-500/30 p-3 rounded-xl font-bold text-slate-800 dark:text-white outline-none focus:ring-2 focus:ring-emerald-500 text-sm uppercase tracking-widest min-w-0"
+                    className="flex-1 bg-white dark:bg-slate-800 border border-emerald-200 dark:border-emerald-500/30 p-2 sm:p-3 rounded-xl font-bold text-slate-800 dark:text-white outline-none focus:ring-2 focus:ring-emerald-500 text-xs sm:text-sm uppercase tracking-widest min-w-0"
                   />
                   <button
                     onClick={handlePlateLookup}
