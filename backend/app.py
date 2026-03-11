@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 from typing import List, Optional
@@ -7,13 +7,26 @@ from ml.storage import init_db, insert_trip, insert_bill
 from ml.train import train_user_model
 from ml.predict import predict_user_forecast
 from ml.cluster import cluster_users
-from ml.vehicle_lookup import lookup_via_parivahan
+from fastapi.security import APIKeyHeader
+from fastapi import Security
+import os
+
+API_KEY_NAME = "x-api-key"
+api_key_header = APIKeyHeader(name=API_KEY_NAME, auto_error=True)
+
+def verify_api_key(api_key: str = Security(api_key_header)):
+    expected_key = os.environ.get("ML_API_KEY", "ecopulse_dev_key")
+    if api_key != expected_key:
+        raise HTTPException(status_code=403, detail="Could not validate credentials")
+    return api_key
 
 app = FastAPI(title="EcoPulse ML Backend", version="2.0.0")
 
+cors_origins = os.environ.get("CORS_ORIGINS", "http://localhost:5173,http://localhost:5174").split(",")
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://localhost:5174"],
+    allow_origins=cors_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -50,19 +63,19 @@ def health():
 
 
 @app.post("/api/trips")
-def add_trip(payload: TripIn):
+def add_trip(payload: TripIn, api_key: str = Depends(verify_api_key)):
     insert_trip(payload)
     return {"status": "ok"}
 
 
 @app.post("/api/bills")
-def add_bill(payload: BillIn):
+def add_bill(payload: BillIn, api_key: str = Depends(verify_api_key)):
     insert_bill(payload)
     return {"status": "ok"}
 
 
 @app.post("/api/train")
-def train(payload: TrainIn):
+def train(payload: TrainIn, api_key: str = Depends(verify_api_key)):
     try:
         result = train_user_model(payload.user_id)
     except ValueError as exc:
@@ -71,7 +84,7 @@ def train(payload: TrainIn):
 
 
 @app.post("/api/predict")
-def predict(payload: PredictIn):
+def predict(payload: PredictIn, api_key: str = Depends(verify_api_key)):
     try:
         result = predict_user_forecast(payload.user_id)
     except FileNotFoundError:
@@ -82,7 +95,7 @@ def predict(payload: PredictIn):
 
 
 @app.get("/api/cluster")
-def cluster():
+def cluster(api_key: str = Depends(verify_api_key)):
     try:
         result = cluster_users()
     except ValueError as exc:
@@ -90,51 +103,4 @@ def cluster():
     return result
 
 
-@app.get("/api/vehicle-lookup")
-def vehicle_lookup(reg: str, useGemini: bool = False):
-    """
-    Look up Indian vehicle registration details.
-    Primary: Parivahan.gov.in (cached, enriched RC data).
-    Returns conditionHint, vehicleAge, emissionNorm, bodyType.
-    If Parivahan fails and useGemini=true, returns source='gemini_needed'
-    so the frontend can optionally fall back to Gemini AI lookup.
-    """
-    if not reg or len(reg.strip()) < 4:
-        raise HTTPException(status_code=400, detail="Invalid registration number.")
 
-    result = lookup_via_parivahan(reg.strip())
-    if result:
-        return result
-
-    # Parivahan failed
-    if useGemini:
-        return {
-            "make": "",
-            "model": "",
-            "fuelType": "",
-            "vehicleType": "",
-            "year": None,
-            "vehicleAge": None,
-            "emissionNorm": "",
-            "bodyType": "",
-            "colour": "",
-            "fitnessExpiry": "",
-            "conditionHint": "Average",
-            "source": "gemini_needed",
-        }
-
-    # Default: tell frontend to fill manually
-    return {
-        "make": "",
-        "model": "",
-        "fuelType": "",
-        "vehicleType": "",
-        "year": None,
-        "vehicleAge": None,
-        "emissionNorm": "",
-        "bodyType": "",
-        "colour": "",
-        "fitnessExpiry": "",
-        "conditionHint": "Average",
-        "source": "not_found",
-    }

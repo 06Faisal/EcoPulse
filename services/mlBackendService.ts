@@ -1,6 +1,7 @@
 import { Trip, UtilityBill } from './types';
 
 const ML_API_URL = import.meta.env.VITE_ML_API_URL || '/api';
+const ML_API_KEY = import.meta.env.VITE_ML_API_KEY || 'ecopulse_dev_key';
 const ML_ENABLED = String(import.meta.env.VITE_ML_ENABLED || '').toLowerCase() === 'true';
 
 const buildUrl = (path: string) => {
@@ -26,7 +27,11 @@ const request = async (path: string, options?: RequestInit) => {
     throw new Error('ML backend not configured.');
   }
   const response = await fetch(buildUrl(path), {
-    headers: { 'Content-Type': 'application/json', ...(options?.headers || {}) },
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': ML_API_KEY,
+      ...(options?.headers || {})
+    },
     ...options
   });
   if (!response.ok) {
