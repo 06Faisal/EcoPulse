@@ -731,7 +731,7 @@ function App() {
   return (
     <div className="min-h-screen text-slate-900 dark:text-slate-100 transition-colors duration-300">
       <div className="mesh-bg" />
-      <div className="max-w-md mx-auto pb-20">
+      <div className="max-w-md mx-auto pb-32">
         {/* Install prompt banner */}
         <InstallPrompt />
 

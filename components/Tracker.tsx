@@ -1110,7 +1110,7 @@ const Tracker: React.FC<TrackerProps> = ({
                   onChange={(e) => setDistance(e.target.value)}
                   onKeyDown={(e) => handleKeyDown(e, handleAddTrip)}
                   placeholder="Distance (km)"
-                  className="w-full bg-slate-50 dark:bg-slate-800 rounded-2xl p-6 text-3xl font-black text-center text-slate-800 dark:text-white outline-none focus:ring-4 focus:ring-emerald-500/10"
+                  className="w-full bg-slate-50 dark:bg-slate-800 rounded-2xl p-6 text-2xl sm:text-3xl font-black text-center text-slate-800 dark:text-white outline-none focus:ring-4 focus:ring-emerald-500/10"
                 />
                 <div className="absolute left-6 top-1/2 -translate-y-1/2 flex items-center gap-3" title="Auto-fill by uploading photo of Odometer">
                   <label className={`cursor-pointer w-10 h-10 rounded-full flex items-center justify-center transition-all shadow-md ${scanningOdometer ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-500 animate-pulse' : 'bg-slate-200 dark:bg-slate-700 hover:bg-emerald-500 hover:text-white text-slate-500 dark:text-slate-400'}`}>
@@ -1298,11 +1298,15 @@ const Tracker: React.FC<TrackerProps> = ({
                               <i className="fa-solid fa-star text-amber-500 text-[8px] ml-1"></i>
                             )}
                           </h4>
-                          <p className="text-[11px] font-bold text-slate-400 uppercase">
-                            {t.distance} km | {t.co2.toFixed(2)} kg CO2 | {new Date(t.date).toLocaleDateString()}
+                          <p className="text-[10px] sm:text-[11px] font-bold text-slate-400 uppercase flex flex-wrap gap-x-2">
+                            <span>{t.distance} km</span>
+                            <span className="opacity-30">|</span>
+                            <span>{t.co2.toFixed(2)} kg CO2</span>
+                            <span className="opacity-30">|</span>
+                            <span>{new Date(t.date).toLocaleDateString()}</span>
                             {baselineStatus?.isAbove && (
-                              <span className="ml-2 text-rose-500 font-black">
-                                Above baseline (+{Math.max(0, Math.round(baselineStatus.percentOver * 100))}%)
+                              <span className="text-rose-500 font-black">
+                                (+{Math.max(0, Math.round(baselineStatus.percentOver * 100))}%)
                               </span>
                             )}
                           </p>
@@ -1447,7 +1451,7 @@ const Tracker: React.FC<TrackerProps> = ({
                 <label className="text-[11px] font-black text-emerald-700 dark:text-emerald-400 uppercase tracking-[0.16em] mb-2 block flex items-center gap-1">
                   <i className="fa-solid fa-magnifying-glass"></i> Auto-fill by Plate Number
                 </label>
-                <div className="flex gap-2">
+                <div className="flex flex-col sm:flex-row gap-2">
                   <input
                     type="text"
                     value={plateInput}
@@ -1455,15 +1459,15 @@ const Tracker: React.FC<TrackerProps> = ({
                     onKeyDown={(e) => e.key === 'Enter' && handlePlateLookup()}
                     placeholder="e.g. MH12AB1234"
                     maxLength={12}
-                    className="flex-1 bg-white dark:bg-slate-800 border border-emerald-200 dark:border-emerald-500/30 p-3 rounded-xl font-bold text-slate-800 dark:text-white outline-none focus:ring-2 focus:ring-emerald-500 text-sm uppercase tracking-widest"
+                    className="flex-1 bg-white dark:bg-slate-800 border border-emerald-200 dark:border-emerald-500/30 p-3 rounded-xl font-bold text-slate-800 dark:text-white outline-none focus:ring-2 focus:ring-emerald-500 text-sm uppercase tracking-widest min-w-0"
                   />
                   <button
                     onClick={handlePlateLookup}
                     disabled={isLookingUpPlate}
-                    className="px-4 py-3 bg-emerald-500 text-white rounded-xl font-black text-xs uppercase tracking-widest disabled:opacity-60 flex items-center gap-2"
+                    className="px-4 py-3 bg-emerald-500 text-white rounded-xl font-black text-[10px] sm:text-xs uppercase tracking-widest disabled:opacity-60 flex items-center justify-center gap-2 whitespace-nowrap"
                   >
                     {isLookingUpPlate
-                      ? <><i className="fa-solid fa-spinner animate-spin"></i> Looking up...</>
+                      ? <><i className="fa-solid fa-spinner animate-spin"></i> Loading</>
                       : <><i className="fa-solid fa-search"></i> Lookup</>}
                   </button>
                 </div>
@@ -1482,7 +1486,7 @@ const Tracker: React.FC<TrackerProps> = ({
                 )}
                 {/* Enriched RC data pills */}
                 {enrichedLookupData && plateSource === 'parivahan' && (
-                  <div className="mt-3 flex flex-wrap gap-2">
+                  <div className="mt-3 flex flex-wrap gap-2 text-[9px] sm:text-[10px]">
                     {enrichedLookupData.vehicleAge !== undefined && enrichedLookupData.vehicleAge !== null && (
                       <span className="px-2 py-1 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-[10px] font-black rounded-lg flex items-center gap-1">
                         <i className="fa-solid fa-calendar text-slate-400" /> {enrichedLookupData.vehicleAge} yr{enrichedLookupData.vehicleAge !== 1 ? 's' : ''} old
@@ -1519,11 +1523,11 @@ const Tracker: React.FC<TrackerProps> = ({
                   value={customVehicleName}
                   onChange={(e) => setCustomVehicleName(e.target.value)}
                   placeholder="e.g., My Tesla Model 3, Honda Civic 2020"
-                  className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 p-4 rounded-xl font-bold text-slate-800 dark:text-white outline-none focus:ring-2 focus:ring-emerald-500"
+                  className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 p-3 rounded-xl font-bold text-slate-800 dark:text-white outline-none focus:ring-2 focus:ring-emerald-500"
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="text-[11px] font-black text-slate-400 uppercase tracking-[0.16em] mb-2 block">
                     Make (Optional)
@@ -1533,7 +1537,7 @@ const Tracker: React.FC<TrackerProps> = ({
                     value={customVehicleMake}
                     onChange={(e) => setCustomVehicleMake(e.target.value)}
                     placeholder="e.g., Honda"
-                    className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 p-4 rounded-xl font-bold text-slate-800 dark:text-white outline-none focus:ring-2 focus:ring-emerald-500"
+                    className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 p-3 rounded-xl font-bold text-slate-800 dark:text-white outline-none focus:ring-2 focus:ring-emerald-500"
                   />
                 </div>
 
@@ -1546,12 +1550,12 @@ const Tracker: React.FC<TrackerProps> = ({
                     value={customVehicleModel}
                     onChange={(e) => setCustomVehicleModel(e.target.value)}
                     placeholder="e.g., Civic"
-                    className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 p-4 rounded-xl font-bold text-slate-800 dark:text-white outline-none focus:ring-2 focus:ring-emerald-500"
+                    className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 p-3 rounded-xl font-bold text-slate-800 dark:text-white outline-none focus:ring-2 focus:ring-emerald-500"
                   />
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="text-[11px] font-black text-slate-400 uppercase tracking-[0.16em] mb-2 block">
                     Year (Optional)
@@ -1561,7 +1565,7 @@ const Tracker: React.FC<TrackerProps> = ({
                     value={customVehicleYear}
                     onChange={(e) => setCustomVehicleYear(e.target.value)}
                     placeholder="e.g., 2020"
-                    className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 p-4 rounded-xl font-bold text-slate-800 dark:text-white outline-none focus:ring-2 focus:ring-emerald-500"
+                    className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 p-3 rounded-xl font-bold text-slate-800 dark:text-white outline-none focus:ring-2 focus:ring-emerald-500"
                   />
                 </div>
 
@@ -1572,7 +1576,7 @@ const Tracker: React.FC<TrackerProps> = ({
                   <select
                     value={customVehicleType}
                     onChange={(e) => setCustomVehicleType(e.target.value)}
-                    className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 p-4 rounded-xl font-bold text-slate-800 dark:text-white outline-none focus:ring-2 focus:ring-emerald-500"
+                    className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 p-3 rounded-xl font-bold text-slate-800 dark:text-white outline-none focus:ring-2 focus:ring-emerald-500"
                   >
                     <option value="">Select</option>
                     <option value="car">Car</option>

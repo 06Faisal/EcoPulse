@@ -19,8 +19,8 @@ const Navigation: React.FC<NavigationProps> = ({ activeTab, onTabChange }) => {
   const activeIndex = tabs.findIndex(t => t.id === activeTab);
 
   return (
-    <div className="fixed bottom-6 left-0 right-0 z-50 px-4 pointer-events-none">
-      <nav className="mx-auto max-w-[400px] bg-white/90 dark:bg-slate-900/90 backdrop-blur-2xl rounded-[2rem] p-2 flex justify-between items-center shadow-2xl pointer-events-auto border border-white/50 dark:border-white/10 relative overflow-hidden">
+    <div className="fixed bottom-0 left-0 right-0 z-50 pointer-events-none">
+      <nav className="mx-auto max-w-md bg-white dark:bg-slate-900 border-t border-slate-100 dark:border-slate-800 p-2 pb-safe flex justify-between items-center shadow-[0_-8px_30px_rgb(0,0,0,0.05)] pointer-events-auto relative overflow-hidden">
         {/* Sliding active pill background */}
         <div
           className="absolute top-2 bottom-2 w-[calc((100%-16px)/6)] bg-emerald-500/15 dark:bg-emerald-500/20 rounded-[1.5rem] transition-transform duration-500 ease-[cubic-bezier(0.175,0.885,0.32,1.275)]"
