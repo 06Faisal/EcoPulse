@@ -389,7 +389,9 @@ function App() {
           ...data.profile,
           customVehicles: data.customVehicles
         });
-        setAvailableVehicles(data.profile.availableVehicles || []);
+        const legacyDefaults = ['Car', 'Bike', 'Bus', 'Train', 'Walking'];
+        const filteredVehicles = (data.profile.availableVehicles || []).filter(v => !legacyDefaults.includes(v));
+        setAvailableVehicles(filteredVehicles);
         if (AUTO_ANALYZE) {
           await runAnalysis({
             tripsOverride: seeded.trips,

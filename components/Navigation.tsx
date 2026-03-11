@@ -20,7 +20,7 @@ const Navigation: React.FC<NavigationProps> = ({ activeTab, onTabChange }) => {
 
   return (
     <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 w-[92%] max-w-md pointer-events-none">
-      <nav className="bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl border border-slate-200/50 dark:border-white/10 p-2 rounded-[2.5rem] flex justify-between items-center shadow-[0_20px_50px_rgba(0,0,0,0.15)] dark:shadow-[0_20px_50px_rgba(0,0,0,0.3)] pointer-events-auto relative overflow-hidden">
+      <nav className="bg-white dark:bg-slate-950 border border-slate-200/50 dark:border-white/10 p-2 rounded-[2.5rem] flex justify-between items-center shadow-[0_20px_50px_rgba(0,0,0,0.15)] dark:shadow-[0_20px_50px_rgba(0,0,0,0.3)] pointer-events-auto relative overflow-hidden">
         {/* Sliding active pill background */}
         <div
           className="absolute top-2 bottom-2 w-[calc((100%-16px)/6)] bg-emerald-500/10 dark:bg-emerald-500/20 rounded-[2rem] transition-transform duration-500 ease-[cubic-bezier(0.175,0.885,0.32,1.275)]"
