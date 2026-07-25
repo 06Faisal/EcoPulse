@@ -36,10 +36,12 @@ evaluation_results/
 .testsprite/
 testsprite-plans/
 
-# Editor directories and files
+# Editor / agent tooling
 .vscode/*
 !.vscode/extensions.json
 .idea
+.claude/
+.agents/
 .DS_Store
 *.suo
 *.ntvs*

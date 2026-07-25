@@ -21,25 +21,12 @@
   box-sizing: border-box;
 }
 
-/* ─── Responsive type scale ──────────────────────────────────────────────────
-   Every size in the app is expressed in rem, so nudging the root size is what
-   lets a layout designed at phone width read correctly on a large monitor
-   instead of leaving pinhole 10px labels stranded in acres of whitespace. */
-html {
-  font-size: 16px;
-}
-
-@media (min-width: 1280px) {
-  html {
-    font-size: 17px;
-  }
-}
-
-@media (min-width: 1536px) {
-  html {
-    font-size: 18px;
-  }
-}
+/* No root font-size override. Sizes throughout the app are in rem, which means
+   they already follow the browser's own default (16px) and honour a reader who
+   has changed it. Scaling the root at wide breakpoints was tried and reverted:
+   Tailwind's spacing scale is rem-based too, so it magnified padding, gaps and
+   card sizes along with the text and the whole UI looked zoomed in. Desktop
+   density comes from the multi-column grids instead. */
 
 @media (min-width: 1024px) {
   :root {
@@ -91,10 +78,11 @@ body {
     border-radius: var(--radius-card-lg);
   }
 
-  /* Standard page gutter for the desktop content column. */
+  /* Content column beside the 18rem sidebar. Capped so text lines and cards
+     stay a comfortable measure instead of stretching across a wide monitor. */
   .content-shell {
     width: 100%;
-    max-width: 96rem;
+    max-width: 80rem;
     margin-inline: auto;
   }
 }
