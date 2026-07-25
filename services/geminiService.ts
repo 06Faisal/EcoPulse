@@ -21,14 +21,27 @@ const devApiKey = import.meta.env.DEV
 /** True when Gemini can be reached, via proxy or a local dev key. */
 const aiAvailable = Boolean(proxyUrl || devApiKey);
 
+// This module gets pulled into several lazily-loaded chunks, so a bare
+// module-scope console.warn fires once per chunk — six times in the deployed
+// build. Mark the warning globally so it is emitted once per page load.
+const warnOnce = (key: string, message: string) => {
+  const flag = `__ecopulse_warned_${key}`;
+  const scope = globalThis as Record<string, unknown>;
+  if (scope[flag]) return;
+  scope[flag] = true;
+  console.warn(message);
+};
+
 if (!aiAvailable) {
-  console.warn(
+  warnOnce(
+    'ai_unconfigured',
     "Gemini is not configured. Set VITE_AI_PROXY_URL (recommended) or, for local development only, VITE_GEMINI_API_KEY."
   );
 }
 
 if (!proxyUrl && devApiKey) {
-  console.warn(
+  warnOnce(
+    'ai_direct_key',
     "Using VITE_GEMINI_API_KEY directly. Never do this in a production build - the key would ship in the bundle."
   );
 }

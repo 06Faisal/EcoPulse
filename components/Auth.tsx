@@ -26,9 +26,14 @@ const Auth: React.FC<AuthProps> = ({ onLogin }) => {
     setError(null);
 
     if (username.trim().length < 3) return setError('Username must be at least 3 characters.');
-    if (password.length < MIN_PASSWORD_LENGTH) {
+
+    // Length is a policy for *new* passwords only. Applying it at sign-in
+    // rejects valid existing credentials created under the old 6-character
+    // rule and locks those accounts out of the app entirely.
+    if (!isLogin && password.length < MIN_PASSWORD_LENGTH) {
       return setError(`Password must be at least ${MIN_PASSWORD_LENGTH} characters.`);
     }
+    if (!password) return setError('Enter your password.');
 
     setBusy(true);
     try {
@@ -154,12 +159,14 @@ const Auth: React.FC<AuthProps> = ({ onLogin }) => {
                 >
                   Password
                 </label>
+                {/* minLength applies to sign-up only; on sign-in the browser
+                    would otherwise block submission of existing short passwords. */}
                 <input
                   id="password"
                   name="password"
                   type="password"
                   required
-                  minLength={MIN_PASSWORD_LENGTH}
+                  minLength={isLogin ? undefined : MIN_PASSWORD_LENGTH}
                   autoComplete={isLogin ? 'current-password' : 'new-password'}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
@@ -191,7 +198,7 @@ const Auth: React.FC<AuthProps> = ({ onLogin }) => {
                   setIsLogin(!isLogin);
                   setError(null);
                 }}
-                className="font-bold text-emerald-600 dark:text-emerald-400 hover:underline"
+                className="font-bold text-emerald-600 dark:text-emerald-400 hover:underline inline-flex items-center justify-center min-h-[44px] px-2"
               >
                 {isLogin ? 'Sign up' : 'Sign in'}
               </button>
