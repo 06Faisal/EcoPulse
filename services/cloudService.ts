@@ -176,7 +176,6 @@ export const cloud = {
   async saveProfile(userId: string, updates: Partial<UserProfile>) {
     const payload: Record<string, unknown> = {};
     if (updates.avatarId !== undefined) payload.avatar_id = updates.avatarId;
-    if (updates.points !== undefined) payload.points = updates.points;
     if (updates.level !== undefined) payload.level = updates.level;
     if (updates.dailyGoal !== undefined) payload.daily_goal = updates.dailyGoal;
     if (updates.rank !== undefined) payload.rank = updates.rank;
@@ -184,14 +183,35 @@ export const cloud = {
     if (updates.darkMode !== undefined) payload.dark_mode = updates.darkMode;
     if (updates.availableVehicles !== undefined) payload.available_vehicles = updates.availableVehicles;
 
-    // `username` is deliberately not updatable here: it is the login identity
-    // (it derives the auth email), so renaming the profile row would leave the
-    // account unreachable under its displayed name. No caller uses it today.
+    // `username` and `points` are deliberately absent. Username is the login
+    // identity (the auth email derives from it) and is pinned by a database
+    // trigger. Points feed the leaderboard, so they are awarded only through
+    // the award_points() function below — the `authenticated` role no longer
+    // holds UPDATE on either column, so including them here would just fail.
 
     if (Object.keys(payload).length === 0) return;
 
     const { error } = await supabase.from('profiles').update(payload).eq('id', userId);
     if (error) throw new Error(formatSupabaseError(error));
+  },
+
+  /**
+   * Award points for a completed action.
+   *
+   * The client cannot write `points` directly: it could otherwise PATCH its own
+   * profile row and set any score, since RLS authorises the row rather than the
+   * value. This calls a SECURITY DEFINER function that only ever increments,
+   * only by an amount the server recognises, and only for the caller's own row.
+   *
+   * @returns the new total, or null if the award was rejected.
+   */
+  async awardPoints(delta: 10 | 20 | 50): Promise<number | null> {
+    const { data, error } = await supabase.rpc('award_points', { delta });
+    if (error) {
+      console.error('[awardPoints]', formatSupabaseError(error));
+      return null;
+    }
+    return typeof data === 'number' ? data : null;
   },
 
   async insertTrip(userId: string, trip: Trip) {

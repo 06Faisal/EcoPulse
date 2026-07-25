@@ -595,12 +595,11 @@ function App() {
   };
 
   const handleAddTrip = (trip: Trip) => {
-    const nextPoints = userProfile.points + 10;
     setTrips(prev => [trip, ...prev]);
     setUserProfile(prev => ({ ...prev, points: prev.points + 10 }));
     if (currentUser) {
       cloud.insertTrip(currentUser.id, trip).catch((error) => console.error('Failed to save trip:', error));
-      cloud.saveProfile(currentUser.id, { points: nextPoints }).catch((error) => console.error('Failed to save points:', error));
+      cloud.awardPoints(10).catch((error) => console.error('Failed to award points:', error));
       refreshLeaderboard(currentUser.id).catch(() => undefined);
       mlBackend.syncTrip(currentUser.id, trip).catch((error) =>
         console.warn('ML backend trip sync failed:', error)
@@ -626,7 +625,6 @@ function App() {
       co2,
       date: new Date().toISOString()
     };
-    const nextPoints = userProfile.points + 20;
     // Remove existing bill for same month
     setBills(prev => {
       const filtered = prev.filter(b => !(b.month === month && b.year === year));
@@ -635,7 +633,7 @@ function App() {
     setUserProfile(prev => ({ ...prev, points: prev.points + 20 }));
     if (currentUser) {
       cloud.insertBill(currentUser.id, newBill).catch((error) => console.error('Failed to save bill:', error));
-      cloud.saveProfile(currentUser.id, { points: nextPoints }).catch((error) => console.error('Failed to save points:', error));
+      cloud.awardPoints(20).catch((error) => console.error('Failed to award points:', error));
       refreshLeaderboard(currentUser.id).catch(() => undefined);
       mlBackend.syncBill(currentUser.id, newBill).catch((error) =>
         console.warn('ML backend bill sync failed:', error)
@@ -664,7 +662,6 @@ function App() {
       const alreadyLogged = (userProfile.loggedDays || []).includes(today);
       if (todayTrips.length > 0 && !alreadyLogged) {
         const nextStreak = userProfile.streak + 1;
-        const nextPoints = userProfile.points + 50;
         setUserProfile(prev => ({
           ...prev,
           streak: prev.streak + 1,
@@ -673,8 +670,9 @@ function App() {
         }));
         if (currentUser) {
           cloud
-            .saveProfile(currentUser.id, { streak: nextStreak, points: nextPoints })
+            .saveProfile(currentUser.id, { streak: nextStreak })
             .catch((error) => console.error('Failed to update streak:', error));
+          cloud.awardPoints(50).catch((error) => console.error('Failed to award points:', error));
           refreshLeaderboard(currentUser.id).catch(() => undefined);
         }
       }

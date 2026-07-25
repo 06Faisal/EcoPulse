@@ -131,12 +131,64 @@ create trigger profiles_username_immutable
   for each row
   execute function prevent_username_change();
 
--- KNOWN LIMITATION: `points` is written by the client, so a user can PATCH
--- their own profile row directly against the REST API and set an arbitrary
--- score. RLS cannot express "only increase, and only by an amount the server
--- agrees with". Closing this properly means awarding points in a
--- SECURITY DEFINER function (or Edge Function) that recomputes the delta from
--- the user's trips, and revoking direct UPDATE on the column.
+-- Postgres grants EXECUTE to PUBLIC on new functions, which would expose this
+-- trigger function at /rest/v1/rpc/prevent_username_change. Triggers fire as
+-- the table owner regardless of these grants, so revoking costs nothing.
+revoke execute on function public.prevent_username_change() from public, anon, authenticated;
+
+-- `points` drives the leaderboard, so the client must not be able to write it
+-- directly: RLS authorises the row, not the column or the value, so a user
+-- could otherwise PATCH their own profile and set any score.
+--
+-- Postgres cannot express "only this column" through RLS, so restrict at the
+-- privilege layer: drop blanket UPDATE and grant it back per column, omitting
+-- points, username and id.
+revoke update on public.profiles from authenticated;
+
+grant update (avatar_id, level, daily_goal, rank, streak, dark_mode, available_vehicles)
+  on public.profiles to authenticated;
+
+-- Awards go through a definer function that can only increment, only by an
+-- amount the server recognises, and only for the caller's own row.
+create or replace function public.award_points(delta integer)
+returns integer
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  new_total integer;
+begin
+  if auth.uid() is null then
+    raise exception 'not authenticated';
+  end if;
+
+  -- The app awards 10 (trip), 20 (bill) and 50 (daily streak).
+  if delta not in (10, 20, 50) then
+    raise exception 'invalid points award: %', delta;
+  end if;
+
+  update profiles
+     set points = points + delta
+   where id = auth.uid()
+  returning points into new_total;
+
+  if new_total is null then
+    raise exception 'profile not found';
+  end if;
+
+  return new_total;
+end;
+$$;
+
+revoke all on function public.award_points(integer) from public, anon;
+grant execute on function public.award_points(integer) to authenticated;
+
+-- REMAINING GAP: a client can still call award_points() repeatedly to farm
+-- score, since the function trusts that the action happened. Closing that
+-- means deriving the award from the user's own trips/bills rows inside the
+-- function, or recording awarded actions in a table with a uniqueness
+-- constraint so each trip can only ever pay out once.
 
 create policy "Users can access their trips"
   on trips for all
