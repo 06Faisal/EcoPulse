@@ -5,13 +5,16 @@ import numpy as np
 
 from .storage import fetch_trips, fetch_bills
 from .features import build_daily_series, make_features, make_future_features
+from security import safe_model_path
 
 MODELS_DIR = Path(__file__).resolve().parent.parent / "models"
 
 
 def predict_user_forecast(user_id: str, days: int = 7):
-    model_path = MODELS_DIR / f"{user_id}.pkl"
-    meta_path = MODELS_DIR / f"{user_id}.json"
+    # joblib.load() executes pickle opcodes, so the path it is handed must be
+    # provably inside MODELS_DIR - never something derived from raw input.
+    model_path = safe_model_path(MODELS_DIR, user_id, ".pkl")
+    meta_path = safe_model_path(MODELS_DIR, user_id, ".json")
 
     if not model_path.exists():
         raise FileNotFoundError("Model not found")

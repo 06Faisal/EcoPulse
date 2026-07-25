@@ -45,7 +45,8 @@ const InstallPrompt: React.FC = () => {
     if (dismissed || installed || !deferredPrompt) return null;
 
     return (
-        <div className="mx-6 mt-4 mb-0 animate-in slide-in-from-top-4 duration-500">
+        // No horizontal margin: the page shell already supplies the gutters.
+        <div className="mt-4 animate-in slide-in-from-top-4 duration-500">
             <div className="relative flex items-center gap-4 p-4 bg-gradient-to-r from-emerald-500 to-teal-500 rounded-2xl shadow-lg shadow-emerald-500/20 overflow-hidden">
                 {/* Background glow */}
                 <div className="absolute inset-0 bg-gradient-to-r from-emerald-600/50 to-teal-600/50 blur-2xl" />
@@ -55,7 +56,7 @@ const InstallPrompt: React.FC = () => {
                 </div>
 
                 <div className="relative flex-1 min-w-0">
-                    <div className="text-[11px] font-black text-white/80 uppercase tracking-[0.14em]">Install App</div>
+                    <div className="text-[0.6875rem] font-black text-white/80 uppercase tracking-[0.14em]">Install App</div>
                     <div className="text-xs text-white font-semibold leading-tight">
                         Add EcoPulse to your home screen for quick access & offline use
                     </div>
@@ -70,9 +71,10 @@ const InstallPrompt: React.FC = () => {
                     </button>
                     <button
                         onClick={handleDismiss}
+                        aria-label="Dismiss install prompt"
                         className="w-7 h-7 bg-white/20 hover:bg-white/30 rounded-lg flex items-center justify-center transition-colors"
                     >
-                        <i className="fa-solid fa-xmark text-white text-xs" />
+                        <i className="fa-solid fa-xmark text-white text-xs" aria-hidden="true" />
                     </button>
                 </div>
             </div>

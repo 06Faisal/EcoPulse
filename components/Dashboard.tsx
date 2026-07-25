@@ -17,8 +17,8 @@ const CustomTooltip = ({ active, payload, label }: any) => {
   if (active && payload && payload.length) {
     return (
       <div className="bg-slate-900 border border-emerald-500/30 p-3 rounded-2xl shadow-xl">
-        <p className="text-[10px] font-black text-emerald-400 uppercase mb-1 tracking-widest">{label}</p>
-        <p className="text-sm font-bold text-white">{Number(payload[0].value).toFixed(2)} <span className="text-[10px] opacity-60">kg</span></p>
+        <p className="text-[0.625rem] font-black text-emerald-400 uppercase mb-1 tracking-widest">{label}</p>
+        <p className="text-sm font-bold text-white">{Number(payload[0].value).toFixed(2)} <span className="text-[0.625rem] opacity-60">kg</span></p>
       </div>
     );
   }
@@ -91,10 +91,10 @@ const WeeklyRing: React.FC<{ used: number; goal: number }> = ({ used, goal }) =>
           <span className={`text-xs font-black ${over ? 'text-rose-500' : 'text-emerald-500'}`}>
             {Math.round(pct * 100)}%
           </span>
-          <span className="text-[9px] text-slate-400 font-black">WEEK</span>
+          <span className="text-[0.5625rem] text-slate-400 font-black">WEEK</span>
         </div>
       </div>
-      <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1">
+      <div className="text-[0.625rem] font-black text-slate-400 uppercase tracking-widest mt-1">
         {used.toFixed(1)} / {goal} kg
       </div>
     </div>
@@ -145,138 +145,162 @@ const Dashboard: React.FC<DashboardProps> = ({ trips, bills, electricity, insigh
 
   return (
     <div className="space-y-6 pt-4 pb-4">
-      {/* Daily CO₂ card */}
-      <div className="glass p-6 rounded-[2rem] border-slate-200 dark:border-white/10 space-y-4 animate-fade-in-up opacity-0" style={{ animationDelay: '0ms' }}>
-        <div className="flex justify-between items-end">
-          <div>
-            <span className="text-slate-400 dark:text-slate-400 text-[11px] font-black uppercase tracking-[0.16em]">Real-time Impact</span>
-            <div className="flex items-baseline gap-1 mt-1">
-              <h2 className="text-4xl font-black text-slate-800 dark:text-white tracking-tighter">
-                <Odometer value={dailyTotal} />
-              </h2>
-              <span className="text-slate-500 dark:text-slate-400 font-bold text-sm italic">kg CO₂e</span>
-            </div>
-          </div>
-          <div className="text-right">
-            <span className="text-slate-400 dark:text-slate-400 text-[11px] font-black uppercase tracking-[0.16em]">Limit: {user.dailyGoal} kg</span>
-            <div className={`text-xs font-black mt-1 ${dailyTotal > user.dailyGoal ? 'text-rose-500' : 'text-emerald-500'}`}>
-              {dailyTotal > user.dailyGoal ? 'ABOVE LIMIT' : 'ON TRACK'}
-            </div>
-          </div>
-        </div>
-        <div className="h-4 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden shadow-inner">
-          <div
-            className={`h-full transition-all duration-1000 ease-out rounded-full ${dailyTotal > user.dailyGoal ? 'bg-gradient-to-r from-rose-400 to-rose-600' : 'bg-gradient-to-r from-emerald-400 to-teal-500'}`}
-            style={{ width: `${progressPercent}%` }}
-          />
-        </div>
-
-        {/* CO₂ Equivalents */}
-        {equivalents.length > 0 && (
-          <div className="pt-2 border-t border-slate-100 dark:border-slate-800">
-            <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.14em] mb-2">That's equivalent to...</p>
-            <div className="flex gap-2 flex-wrap">
-              {equivalents.map((eq, i) => (
-                <div key={i} className="flex items-center gap-1.5 px-2.5 py-1.5 bg-slate-50 dark:bg-slate-800/60 rounded-xl">
-                  <span className="text-sm">{eq.icon}</span>
-                  <div>
-                    <div className="text-[10px] font-black text-slate-700 dark:text-white leading-none">{eq.value}</div>
-                    <div className="text-[9px] text-slate-400 font-medium leading-none mt-0.5">{eq.label}</div>
-                  </div>
+      {/* Responsive layout: 3 columns on large screens, stacks on mobile */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        
+        {/* Main Column (2/3 width on desktop) */}
+        <div className="lg:col-span-2 space-y-6">
+          {/* Daily CO₂ card */}
+          <div className="glass p-6 rounded-card border-slate-200 dark:border-white/10 space-y-4 animate-fade-in-up opacity-0" style={{ animationDelay: '0ms' }}>
+            <div className="flex justify-between items-end">
+              <div>
+                <span className="text-slate-400 dark:text-slate-400 text-[0.6875rem] font-black uppercase tracking-[0.16em]">Real-time Impact</span>
+                <div className="flex items-baseline gap-1 mt-1">
+                  <h2 className="text-4xl font-black text-slate-800 dark:text-white tracking-tighter">
+                    <Odometer value={dailyTotal} />
+                  </h2>
+                  <span className="text-slate-500 dark:text-slate-400 font-bold text-sm italic">kg CO₂e</span>
                 </div>
-              ))}
+              </div>
+              <div className="text-right">
+                <span className="text-slate-400 dark:text-slate-400 text-[0.6875rem] font-black uppercase tracking-[0.16em]">Limit: {user.dailyGoal} kg</span>
+                <div className={`text-xs font-black mt-1 ${dailyTotal > user.dailyGoal ? 'text-rose-500' : 'text-emerald-500'}`}>
+                  {dailyTotal > user.dailyGoal ? 'ABOVE LIMIT' : 'ON TRACK'}
+                </div>
+              </div>
+            </div>
+            <div className="h-4 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden shadow-inner">
+              <div
+                className={`h-full transition-all duration-1000 ease-out rounded-full ${dailyTotal > user.dailyGoal ? 'bg-gradient-to-r from-rose-400 to-rose-600' : 'bg-gradient-to-r from-emerald-400 to-teal-500'}`}
+                style={{ width: `${progressPercent}%` }}
+              />
+            </div>
+
+            {/* CO₂ Equivalents */}
+            {equivalents.length > 0 && (
+              <div className="pt-2 border-t border-slate-100 dark:border-slate-800">
+                <p className="text-[0.625rem] font-black text-slate-400 uppercase tracking-[0.14em] mb-2">That's equivalent to...</p>
+                <div className="flex gap-2 flex-wrap">
+                  {equivalents.map((eq, i) => (
+                    <div key={i} className="flex items-center gap-1.5 px-2.5 py-1.5 bg-slate-50 dark:bg-slate-800/60 rounded-xl">
+                      <span className="text-sm">{eq.icon}</span>
+                      <div>
+                        <div className="text-[0.625rem] font-black text-slate-700 dark:text-white leading-none">{eq.value}</div>
+                        <div className="text-[0.5625rem] text-slate-400 font-medium leading-none mt-0.5">{eq.label}</div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* 7-day chart */}
+          <div className="glass p-6 rounded-card border-slate-200 dark:border-white/10 animate-fade-in-up opacity-0" style={{ animationDelay: '300ms' }}>
+            <div className="flex justify-between items-center mb-6 px-1">
+              <h3 className="text-[0.6875rem] font-black text-slate-400 dark:text-slate-400 uppercase tracking-[0.16em]">Weekly Projection</h3>
+              <div className="text-[0.625rem] font-black text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-3 py-1 rounded-full uppercase tracking-[0.12em]">Week View</div>
+            </div>
+            <div className="h-56 w-full">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={chartData} margin={{ left: 0, right: 0, top: 10, bottom: 20 }}>
+                  <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 9, fontWeight: 700 }} interval={0} padding={{ left: 20, right: 20 }} />
+                  <YAxis axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 8, fontWeight: 700 }} width={28} label={{ value: 'kg', angle: -90, position: 'insideLeft', fill: '#94a3b8', fontSize: 9, fontWeight: 700 }} />
+                  <Tooltip content={<CustomTooltip />} cursor={{ stroke: '#10b981', strokeWidth: 1, strokeDasharray: '5 5' }} />
+                  <Line type="monotone" dataKey="value" stroke="#10b981" strokeWidth={4} dot={{ r: 5, fill: '#fff', strokeWidth: 3, stroke: '#10b981' }} activeDot={{ r: 8, strokeWidth: 0, fill: '#10b981' }} animationDuration={1500} connectNulls={true}>
+                    <LabelList dataKey="value" content={<ChartValueLabel />} />
+                  </Line>
+                </LineChart>
+              </ResponsiveContainer>
             </div>
           </div>
-        )}
-      </div>
-
-      {/* Weekly Goal + Share row */}
-      <div className="grid grid-cols-2 gap-4 animate-fade-in-up opacity-0" style={{ animationDelay: '100ms' }}>
-        <div className="glass interactive p-5 rounded-[2rem] border-slate-200 dark:border-white/10 flex flex-col items-center justify-center">
-          <WeeklyRing used={weekCO2} goal={weeklyGoal} />
-          <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.12em] mt-2 text-center">Weekly Goal</p>
         </div>
-        <div className="glass p-5 rounded-[2rem] border-slate-200 dark:border-white/10 flex flex-col items-center justify-center gap-3">
-          <div className="w-12 h-12 rounded-2xl bg-amber-500/10 flex items-center justify-center">
-            <i className="fa-solid fa-fire text-amber-500 text-xl" />
+
+        {/* Sidebar Panel (1/3 width on desktop) */}
+        <div className="space-y-6">
+          {/* Weekly Goal + Share row */}
+          <div className="grid grid-cols-2 gap-4 animate-fade-in-up opacity-0" style={{ animationDelay: '100ms' }}>
+            <div className="glass interactive p-5 rounded-card border-slate-200 dark:border-white/10 flex flex-col items-center justify-center">
+              <WeeklyRing used={weekCO2} goal={weeklyGoal} />
+              <p className="text-[0.625rem] font-black text-slate-400 uppercase tracking-[0.12em] mt-2 text-center">Weekly Goal</p>
+            </div>
+            <div className="glass p-5 rounded-card border-slate-200 dark:border-white/10 flex flex-col items-center justify-center gap-3">
+              <div className="w-12 h-12 rounded-2xl bg-amber-500/10 flex items-center justify-center">
+                <i className="fa-solid fa-fire text-amber-500 text-xl" />
+              </div>
+              <div className="text-center">
+                <div className="text-2xl font-black text-slate-800 dark:text-white">{user.streak}</div>
+                <div className="text-[0.625rem] font-black text-slate-400 uppercase tracking-widest">Day Streak</div>
+              </div>
+              <button
+                onClick={() => setShowShare(true)}
+                className="w-full py-2 bg-emerald-500 hover:bg-emerald-400 text-white text-[0.625rem] font-black uppercase tracking-widest rounded-xl transition-colors flex items-center justify-center gap-1.5"
+              >
+                <i className="fa-solid fa-share-nodes text-xs" /> Share
+              </button>
+            </div>
           </div>
-          <div className="text-center">
-            <div className="text-2xl font-black text-slate-800 dark:text-white">{user.streak}</div>
-            <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Day Streak</div>
-          </div>
-          <button
-            onClick={() => setShowShare(true)}
-            className="w-full py-2 bg-emerald-500 hover:bg-emerald-400 text-white text-[10px] font-black uppercase tracking-widest rounded-xl transition-colors flex items-center justify-center gap-1.5"
+
+          {/* ML Insight card */}
+          <div
+            className={`interactive p-6 rounded-card border transition-all duration-700 relative overflow-hidden group animate-fade-in-up opacity-0 ${insight?.risk === 'High' ? 'bg-rose-50 border-rose-100 dark:bg-rose-500/10 dark:border-rose-500/20' : 'bg-emerald-50 border-emerald-100 dark:bg-emerald-500/10 dark:border-emerald-500/20'}`}
+            style={{ animationDelay: '200ms' }}
           >
-            <i className="fa-solid fa-share-nodes text-xs" /> Share
-          </button>
-        </div>
-      </div>
-
-      {/* ML Insight card */}
-      <div
-        className={`interactive p-6 rounded-[2rem] border transition-all duration-700 relative overflow-hidden group animate-fade-in-up opacity-0 ${insight?.risk === 'High' ? 'bg-rose-50 border-rose-100 dark:bg-rose-500/10 dark:border-rose-500/20' : 'bg-emerald-50 border-emerald-100 dark:bg-emerald-500/10 dark:border-emerald-500/20'}`}
-        style={{ animationDelay: '200ms' }}
-      >
-        <div className="flex items-center gap-2 mb-4">
-          <div className={`w-2.5 h-2.5 rounded-full ${loading ? 'bg-amber-400 animate-pulse' : 'bg-emerald-400 ai-pulse'}`}></div>
-          <span className="text-[11px] font-black tracking-[0.16em] text-emerald-600 dark:text-emerald-400 uppercase">ML Insight Engine</span>
-        </div>
-        <h3 className="text-lg font-black text-slate-800 dark:text-white mb-2 leading-tight">
-          {loading ? "Analyzing behaviors..." : insight?.risk === 'High' ? "Imminent Carbon Alert" : "Peak Efficiency Mode"}
-        </h3>
-        <p className="text-sm text-slate-600 dark:text-slate-300 font-medium leading-relaxed mb-6">
-          {insight?.message || "Aggregating your patterns to predict future environmental impact."}
-        </p>
-        {insight && !loading && (
-          <div className="grid grid-cols-2 gap-4 mt-4 bg-white/60 dark:bg-slate-900/40 p-4 rounded-2xl border border-slate-200 dark:border-white/5">
-            <div>
-              <div className="text-[11px] font-black text-slate-400 uppercase mb-1">Travel Predicted</div>
-              <div className="text-lg font-black text-slate-800 dark:text-white">{Number(insight.breakdown.travel).toFixed(1)} kg</div>
+            <div className="flex items-center gap-2 mb-4">
+              <div className={`w-2.5 h-2.5 rounded-full ${loading ? 'bg-amber-400 animate-pulse' : 'bg-emerald-400 ai-pulse'}`}></div>
+              <span className="text-[0.6875rem] font-black tracking-[0.16em] text-emerald-600 dark:text-emerald-400 uppercase">ML Insight Engine</span>
             </div>
-            <div>
-              <div className="text-[11px] font-black text-slate-400 uppercase mb-1">Energy Baseline</div>
-              <div className="text-lg font-black text-slate-800 dark:text-white">{Number(insight.breakdown.energy).toFixed(1)} kg</div>
-            </div>
+            <h3 className="text-lg font-black text-slate-800 dark:text-white mb-2 leading-tight">
+              {loading ? "Analyzing behaviors..." : insight?.risk === 'High' ? "Imminent Carbon Alert" : "Peak Efficiency Mode"}
+            </h3>
+            <p className="text-sm text-slate-600 dark:text-slate-300 font-medium leading-relaxed mb-6">
+              {insight?.message || "Aggregating your patterns to predict future environmental impact."}
+            </p>
+            {insight && !loading && (
+              <div className="grid grid-cols-2 gap-4 mt-4 bg-white/60 dark:bg-slate-900/40 p-4 rounded-2xl border border-slate-200 dark:border-white/5">
+                <div>
+                  <div className="text-[0.6875rem] font-black text-slate-400 uppercase mb-1">Travel Predicted</div>
+                  <div className="text-lg font-black text-slate-800 dark:text-white">{Number(insight.breakdown.travel).toFixed(1)} kg</div>
+                </div>
+                <div>
+                  <div className="text-[0.6875rem] font-black text-slate-400 uppercase mb-1">Energy Baseline</div>
+                  <div className="text-lg font-black text-slate-800 dark:text-white">{Number(insight.breakdown.energy).toFixed(1)} kg</div>
+                </div>
+              </div>
+            )}
           </div>
-        )}
-      </div>
-
-      {/* 7-day chart */}
-      <div className="glass p-6 rounded-[2rem] border-slate-200 dark:border-white/10 animate-fade-in-up opacity-0" style={{ animationDelay: '300ms' }}>
-        <div className="flex justify-between items-center mb-6 px-1">
-          <h3 className="text-[11px] font-black text-slate-400 dark:text-slate-400 uppercase tracking-[0.16em]">Weekly Projection</h3>
-          <div className="text-[10px] font-black text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-3 py-1 rounded-full uppercase tracking-[0.12em]">Week View</div>
-        </div>
-        <div className="h-56 w-full">
-          <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={chartData} margin={{ left: 0, right: 0, top: 10, bottom: 20 }}>
-              <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 9, fontWeight: 700 }} interval={0} padding={{ left: 20, right: 20 }} />
-              <YAxis axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 8, fontWeight: 700 }} width={28} label={{ value: 'kg', angle: -90, position: 'insideLeft', fill: '#94a3b8', fontSize: 9, fontWeight: 700 }} />
-              <Tooltip content={<CustomTooltip />} cursor={{ stroke: '#10b981', strokeWidth: 1, strokeDasharray: '5 5' }} />
-              <Line type="monotone" dataKey="value" stroke="#10b981" strokeWidth={4} dot={{ r: 5, fill: '#fff', strokeWidth: 3, stroke: '#10b981' }} activeDot={{ r: 8, strokeWidth: 0, fill: '#10b981' }} animationDuration={1500} connectNulls={true}>
-                <LabelList dataKey="value" content={<ChartValueLabel />} />
-              </Line>
-            </LineChart>
-          </ResponsiveContainer>
         </div>
       </div>
 
       {/* Bottom stats */}
-      <div className="grid grid-cols-2 gap-4 animate-fade-in-up opacity-0" style={{ animationDelay: '400ms' }}>
-        <div className="glass interactive p-6 rounded-[2rem] flex flex-col items-center justify-center text-center border-slate-200 dark:border-white/10">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 animate-fade-in-up opacity-0" style={{ animationDelay: '400ms' }}>
+        <div className="glass interactive p-6 rounded-card flex flex-col items-center justify-center text-center border-slate-200 dark:border-white/10">
           <div className="w-12 h-12 rounded-2xl bg-blue-500/10 flex items-center justify-center text-blue-500 mb-3 border border-blue-500/10">
             <i className="fa-solid fa-bolt-lightning text-xl"></i>
           </div>
-          <span className="text-[11px] font-black text-slate-400 uppercase tracking-[0.16em] mb-1">Energy Baseline</span>
+          <span className="text-[0.6875rem] font-black text-slate-400 uppercase tracking-[0.16em] mb-1">Energy Baseline</span>
           <div className="text-xl font-black text-slate-800 dark:text-white">{Number(electricity) || 0} <span className="text-xs font-bold text-slate-400">kWh</span></div>
         </div>
-        <div className="glass p-6 rounded-[2rem] flex flex-col items-center justify-center text-center border-slate-200 dark:border-white/10">
+        <div className="glass p-6 rounded-card flex flex-col items-center justify-center text-center border-slate-200 dark:border-white/10">
           <div className="w-12 h-12 rounded-2xl bg-orange-500/10 flex items-center justify-center text-orange-500 mb-3 border border-orange-500/10">
             <i className="fa-solid fa-calendar-check text-xl"></i>
           </div>
-          <span className="text-[11px] font-black text-slate-400 uppercase tracking-[0.16em] mb-1">Logs Today</span>
+          <span className="text-[0.6875rem] font-black text-slate-400 uppercase tracking-[0.16em] mb-1">Logs Today</span>
           <div className="text-xl font-black text-slate-800 dark:text-white">{dailyBehaviors.length} <span className="text-xs font-bold text-slate-400">trips</span></div>
+        </div>
+        <div className="glass interactive p-6 rounded-card flex flex-col items-center justify-center text-center border-slate-200 dark:border-white/10">
+          <div className="w-12 h-12 rounded-2xl bg-emerald-500/10 flex items-center justify-center text-emerald-500 mb-3 border border-emerald-500/10">
+            <i className="fa-solid fa-route text-xl"></i>
+          </div>
+          <span className="text-[0.6875rem] font-black text-slate-400 uppercase tracking-[0.16em] mb-1">Total Travel</span>
+          <div className="text-xl font-black text-slate-800 dark:text-white">{trips.reduce((acc, t) => acc + (t.distance || 0), 0).toFixed(1)} <span className="text-xs font-bold text-slate-400">km</span></div>
+        </div>
+        <div className="glass interactive p-6 rounded-card flex flex-col items-center justify-center text-center border-slate-200 dark:border-white/10">
+          <div className="w-12 h-12 rounded-2xl bg-rose-500/10 flex items-center justify-center text-rose-500 mb-3 border border-rose-500/10">
+            <i className="fa-solid fa-cloud-arrow-down text-xl"></i>
+          </div>
+          <span className="text-[0.6875rem] font-black text-slate-400 uppercase tracking-[0.16em] mb-1">Total Emissions</span>
+          <div className="text-xl font-black text-slate-800 dark:text-white">{trips.reduce((acc, t) => acc + (t.co2 || 0), 0).toFixed(1)} <span className="text-xs font-bold text-slate-400">kg</span></div>
         </div>
       </div>
 

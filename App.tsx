@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback, Suspense } from 'react';
 import Auth from './components/Auth';
-import Navigation from './components/Navigation';
+import Navigation, { type TabId } from './components/Navigation';
 import { ThemeToggle } from './components/ui/theme-toggle';
 import InstallPrompt from './components/InstallPrompt';
 
@@ -37,6 +37,24 @@ const reverseGeocodeCity = async (lat: number, lng: number): Promise<string> => 
   } catch {
     return '';
   }
+};
+
+const TAB_TITLES: Record<TabId, string> = {
+  home: 'Dashboard',
+  track: 'Log Activity',
+  emissions: 'Impact Breakdown',
+  ai: 'AI Advisor',
+  challenges: 'Challenges',
+  profile: 'Profile'
+};
+
+const TAB_SUBTITLES: Record<TabId, string> = {
+  home: 'Your footprint at a glance',
+  track: 'Add trips and utility bills',
+  emissions: 'Where your emissions come from',
+  ai: 'Personalised recommendations',
+  challenges: 'Compete and stay motivated',
+  profile: 'Goals, streaks and ranking'
 };
 
 const IS_DEV = Boolean(import.meta.env.DEV);
@@ -127,7 +145,7 @@ const buildSeedBills = (seedTag: string): UtilityBill[] => {
 
 function App() {
   const [currentUser, setCurrentUser] = useState<{ id: string; username: string } | null>(null);
-  const [activeTab, setActiveTab] = useState<'home' | 'track' | 'emissions' | 'ai' | 'profile' | 'challenges'>('home');
+  const [activeTab, setActiveTab] = useState<TabId>('home');
   const [trips, setTrips] = useState<Trip[]>([]);
   const [bills, setBills] = useState<UtilityBill[]>([]);
   const [insight, setInsight] = useState<AIInsight | null>(null);
@@ -143,7 +161,7 @@ function App() {
     dailyGoal: 10,
     rank: 28,
     streak: 3,
-    darkMode: false,
+    darkMode: true,
     customVehicles: [],
     availableVehicles: []
   });
@@ -733,23 +751,36 @@ function App() {
   return (
     <div className="min-h-screen text-slate-900 dark:text-slate-100 transition-colors duration-300">
       <div className="mesh-bg" />
-      <div className="max-w-md mx-auto pb-32">
-        {/* Install prompt banner */}
-        <InstallPrompt />
 
-        {/* Header */}
-        <header className="sticky top-0 z-30 bg-white/80 dark:bg-slate-900/80 backdrop-blur-2xl border-b border-slate-100 dark:border-slate-800 px-6 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-emerald-500 rounded-2xl flex items-center justify-center text-white shadow-md">
-                <i className="fa-solid fa-leaf text-lg"></i>
+      <a
+        href="#main-content"
+        className="sr-only focus:not-sr-only focus:fixed focus:top-3 focus:left-3 focus:z-[100] focus:px-4 focus:py-2 focus:rounded-xl focus:bg-emerald-500 focus:text-white focus:font-bold"
+      >
+        Skip to content
+      </a>
+
+      {/* Bottom bar on mobile, fixed sidebar from lg up */}
+      <Navigation activeTab={activeTab} onTabChange={setActiveTab} />
+
+      <div className="lg:pl-72">
+        {/* One header for every breakpoint. The branding block is only shown
+            below lg, where the sidebar that normally carries it is hidden. */}
+        <header className="sticky top-0 z-30 bg-white/80 dark:bg-slate-950/80 backdrop-blur-2xl border-b border-slate-200/70 dark:border-slate-800">
+          <div className="content-shell px-4 sm:px-6 lg:px-10 py-3.5 flex justify-between items-center gap-4">
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="w-10 h-10 bg-emerald-500 rounded-2xl flex items-center justify-center text-white shadow-md shrink-0 lg:hidden">
+                <i className="fa-solid fa-leaf text-lg" aria-hidden="true" />
               </div>
-              <div>
-                <h1 className="text-lg font-black text-slate-800 dark:text-white tracking-tight">EcoPulse AI</h1>
-                <p className="text-[11px] font-bold text-slate-400 uppercase tracking-[0.16em]">Sustainability</p>
+              <div className="min-w-0">
+                <h2 className="text-base font-black text-slate-800 dark:text-white capitalize leading-tight truncate">
+                  {TAB_TITLES[activeTab]}
+                </h2>
+                <p className="text-[0.5625rem] font-black text-slate-400 uppercase tracking-[0.16em] truncate">
+                  {TAB_SUBTITLES[activeTab]}
+                </p>
               </div>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 shrink-0">
               <ThemeToggle
                 className=""
                 isDark={userProfile.darkMode}
@@ -757,95 +788,97 @@ function App() {
               />
               <button
                 onClick={handleLogout}
-                className="w-10 h-10 rounded-xl bg-rose-100 dark:bg-rose-500/10 text-rose-500 flex items-center justify-center transition-colors"
+                aria-label="Sign out"
+                className="w-10 h-10 rounded-xl bg-rose-100 dark:bg-rose-500/10 text-rose-500 hover:bg-rose-200 dark:hover:bg-rose-500/20 flex items-center justify-center transition-colors"
               >
-                <i className="fa-solid fa-right-from-bracket"></i>
+                <i className="fa-solid fa-right-from-bracket" aria-hidden="true" />
               </button>
             </div>
           </div>
         </header>
 
-        {/* Main Content */}
-        <main className="px-6">
-          <Suspense fallback={
-            <div className="flex items-center justify-center py-20">
-              <div className="w-8 h-8 border-3 border-emerald-500 border-t-transparent rounded-full animate-spin" />
-            </div>
-          }>
-            {activeTab === 'home' && (
-              <Dashboard
-                trips={trips}
-                bills={bills}
-                electricity={totalElectricity}
-                insight={insight}
-                user={userProfile}
-                loading={loadingInsight}
-              />
-            )}
-            {activeTab === 'track' && (
-              <Tracker
-                trips={trips}
-                bills={bills}
-                customVehicles={userProfile.customVehicles || []}
-                availableVehicles={availableVehicles}
-                onAddTrip={handleAddTrip}
-                onDeleteTrip={handleDeleteTrip}
-                onUpdateElectricity={handleUpdateElectricity}
-                onDeleteBill={handleDeleteBill}
-                onFinishDay={handleFinishDay}
-                onAddCustomVehicle={handleAddCustomVehicle}
-                onDeleteCustomVehicle={handleDeleteCustomVehicle}
-                onDeleteBaseVehicle={handleDeleteBaseVehicle}
-              />
-            )}
-            {activeTab === 'emissions' && (
-              <Emissions
-                trips={trips}
-                electricity={totalElectricity}
-                bills={bills}
-                onDeleteTripsByVehicle={(vehicleType) => {
-                  const updatedTrips = trips.filter(t => {
-                    if (t.vehicle === 'Custom') {
-                      return t.customVehicleName !== vehicleType;
-                    }
-                    return t.vehicle !== vehicleType;
-                  });
-                  setTrips(updatedTrips);
-                }}
-              />
-            )}
-            {activeTab === 'ai' && (
-              <AIAdvisor
-                insight={insight}
-                loading={loadingInsight}
-                userCity={userCity}
-                mostUsedVehicle={insight?.patterns?.mostUsedVehicle}
-              />
-            )}
-            {activeTab === 'challenges' && currentUser && (
-              <Challenges
-                userId={currentUser.id}
-                userCO2ThisWeek={(() => {
-                  const cutoff = new Date();
-                  cutoff.setDate(cutoff.getDate() - 7);
-                  return trips.filter(t => new Date(t.date) >= cutoff).reduce((s, t) => s + t.co2, 0);
-                })()}
-              />
-            )}
-            {activeTab === 'profile' && (
-              <Profile
-                user={userProfile}
-                trips={trips}
-                bills={bills}
-                onUpdateProfile={handleUpdateProfile}
-                rankings={leaderboard}
-              />
-            )}
-          </Suspense>
-        </main>
+        <div className="content-shell px-4 sm:px-6 lg:px-10">
+          <InstallPrompt />
 
-        {/* Navigation */}
-        <Navigation activeTab={activeTab} onTabChange={setActiveTab} />
+          {/* Extra bottom padding on mobile clears the floating tab bar. */}
+          <main id="main-content" className="pb-28 lg:pb-12">
+            <Suspense fallback={
+              <div className="flex items-center justify-center py-20">
+                <div className="w-8 h-8 border-3 border-emerald-500 border-t-transparent rounded-full animate-spin" />
+              </div>
+            }>
+              {activeTab === 'home' && (
+                <Dashboard
+                  trips={trips}
+                  bills={bills}
+                  electricity={totalElectricity}
+                  insight={insight}
+                  user={userProfile}
+                  loading={loadingInsight}
+                />
+              )}
+              {activeTab === 'track' && (
+                <Tracker
+                  trips={trips}
+                  bills={bills}
+                  customVehicles={userProfile.customVehicles || []}
+                  availableVehicles={availableVehicles}
+                  onAddTrip={handleAddTrip}
+                  onDeleteTrip={handleDeleteTrip}
+                  onUpdateElectricity={handleUpdateElectricity}
+                  onDeleteBill={handleDeleteBill}
+                  onFinishDay={handleFinishDay}
+                  onAddCustomVehicle={handleAddCustomVehicle}
+                  onDeleteCustomVehicle={handleDeleteCustomVehicle}
+                  onDeleteBaseVehicle={handleDeleteBaseVehicle}
+                />
+              )}
+              {activeTab === 'emissions' && (
+                <Emissions
+                  trips={trips}
+                  electricity={totalElectricity}
+                  bills={bills}
+                  onDeleteTripsByVehicle={(vehicleType) => {
+                    const updatedTrips = trips.filter(t => {
+                      if (t.vehicle === 'Custom') {
+                        return t.customVehicleName !== vehicleType;
+                      }
+                      return t.vehicle !== vehicleType;
+                    });
+                    setTrips(updatedTrips);
+                  }}
+                />
+              )}
+              {activeTab === 'ai' && (
+                <AIAdvisor
+                  insight={insight}
+                  loading={loadingInsight}
+                  userCity={userCity}
+                  mostUsedVehicle={insight?.patterns?.mostUsedVehicle}
+                />
+              )}
+              {activeTab === 'challenges' && currentUser && (
+                <Challenges
+                  userId={currentUser.id}
+                  userCO2ThisWeek={(() => {
+                    const cutoff = new Date();
+                    cutoff.setDate(cutoff.getDate() - 7);
+                    return trips.filter(t => new Date(t.date) >= cutoff).reduce((s, t) => s + t.co2, 0);
+                  })()}
+                />
+              )}
+              {activeTab === 'profile' && (
+                <Profile
+                  user={userProfile}
+                  trips={trips}
+                  bills={bills}
+                  onUpdateProfile={handleUpdateProfile}
+                  rankings={leaderboard}
+                />
+              )}
+            </Suspense>
+          </main>
+        </div>
       </div>
     </div>
   );

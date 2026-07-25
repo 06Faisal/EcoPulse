@@ -1,15 +1,41 @@
 import { supabase } from './supabaseClient';
 import { Trip, UtilityBill, UserProfile, CustomVehicle, VehicleType, LeaderboardEntry } from './types';
 
-const usernameToEmail = (username: string) => `${username.toLowerCase()}@ecopulse.app`;
+// Usernames are the login identity, so they must map 1:1 onto the synthetic
+// email address. Normalising here (and storing the normalised form) prevents
+// "Alice" and "alice" from resolving to the same auth account while occupying
+// two different profile rows.
+const USERNAME_PATTERN = /^[a-z0-9_.-]{3,24}$/;
 
+export const normalizeUsername = (username: string) => username.trim().toLowerCase();
+
+export const assertValidUsername = (username: string) => {
+  const normalized = normalizeUsername(username);
+  if (!USERNAME_PATTERN.test(normalized)) {
+    throw new Error(
+      'Username must be 3-24 characters using letters, numbers, dot, dash or underscore.'
+    );
+  }
+  return normalized;
+};
+
+const usernameToEmail = (username: string) => `${normalizeUsername(username)}@ecopulse.app`;
+
+/**
+ * Surface a short, safe message to the UI and keep the database internals
+ * (Postgres hints, constraint names, error codes) in the console for the
+ * developer. Those details describe the schema and belong in logs, not on
+ * screen in front of an unauthenticated visitor.
+ */
 const formatSupabaseError = (error: any) => {
-  if (!error) return 'Unknown Supabase error';
-  const message = error.message || 'Unknown Supabase error';
-  const details = error.details ? `Details: ${error.details}` : '';
-  const hint = error.hint ? `Hint: ${error.hint}` : '';
-  const code = error.code ? `Code: ${error.code}` : '';
-  return [message, details, hint, code].filter(Boolean).join(' | ');
+  if (!error) return 'Something went wrong. Please try again.';
+  console.error('[supabase]', {
+    message: error.message,
+    details: error.details,
+    hint: error.hint,
+    code: error.code
+  });
+  return error.message || 'Something went wrong. Please try again.';
 };
 
 const mapProfileRow = (row: any): UserProfile => ({
@@ -72,22 +98,24 @@ export const cloud = {
   },
 
   async signUp(username: string, password: string, profile: UserProfile) {
+    const normalized = assertValidUsername(username);
+
     const { data: existing } = await supabase
       .from('profiles')
       .select('id')
-      .eq('username', username)
+      .eq('username', normalized)
       .maybeSingle();
     if (existing) {
       throw new Error('Username already taken.');
     }
 
-    const email = usernameToEmail(username);
+    const email = usernameToEmail(normalized);
     const { data, error } = await supabase.auth.signUp({ email, password });
     if (error || !data.user) throw new Error(formatSupabaseError(error) || 'Sign up failed.');
 
     const { error: profileError } = await supabase.from('profiles').insert({
       id: data.user.id,
-      username,
+      username: normalized,
       avatar_id: profile.avatarId,
       points: profile.points,
       level: profile.level,
@@ -99,7 +127,7 @@ export const cloud = {
     });
     if (profileError) throw new Error(formatSupabaseError(profileError));
 
-    return { id: data.user.id, username };
+    return { id: data.user.id, username: normalized };
   },
 
   async signIn(username: string, password: string) {
@@ -155,7 +183,10 @@ export const cloud = {
     if (updates.streak !== undefined) payload.streak = updates.streak;
     if (updates.darkMode !== undefined) payload.dark_mode = updates.darkMode;
     if (updates.availableVehicles !== undefined) payload.available_vehicles = updates.availableVehicles;
-    if (updates.name !== undefined) payload.username = updates.name;
+
+    // `username` is deliberately not updatable here: it is the login identity
+    // (it derives the auth email), so renaming the profile row would leave the
+    // account unreachable under its displayed name. No caller uses it today.
 
     if (Object.keys(payload).length === 0) return;
 

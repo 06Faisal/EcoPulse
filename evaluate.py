@@ -19,9 +19,14 @@ from sklearn.metrics import (
 )
 from sklearn.ensemble import RandomForestRegressor
 
-# Import from ml package
 import sys
+
+# `ml/` holds the SQLite storage layer used only by this offline harness.
+# Feature engineering is imported from `backend/ml/` so the evaluation scores
+# exactly the transformations the deployed service applies — keeping a second
+# copy here let the two silently drift apart.
 sys.path.append(str(Path(__file__).parent / 'ml'))
+sys.path.append(str(Path(__file__).parent / 'backend' / 'ml'))
 from storage import fetch_trips, fetch_bills, fetch_user_ids
 from features import build_daily_series, make_features, train_test_split_time
 
