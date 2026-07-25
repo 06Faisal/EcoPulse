@@ -67,18 +67,18 @@ const LocationSuggestions: React.FC<{ city: string; vehicle: string }> = ({ city
   };
 
   return (
-    <div className="glass p-6 rounded-[2.5rem] bg-white dark:bg-slate-900/40">
+    <div className="glass p-6 rounded-card-lg bg-white dark:bg-slate-900/40">
       <div className="flex items-center justify-between mb-6">
-        <h3 className="text-[11px] font-black text-slate-400 uppercase tracking-[0.16em] flex items-center gap-2">
+        <h3 className="text-[0.6875rem] font-black text-slate-400 uppercase tracking-[0.16em] flex items-center gap-2">
           <i className="fa-solid fa-location-dot text-emerald-500" />
           Alternatives Near You
           {city && (
-            <span className="px-2 py-0.5 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 rounded-full text-[10px] capitalize truncate max-w-[80px]">
+            <span className="px-2 py-0.5 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 rounded-full text-[0.625rem] capitalize truncate max-w-[80px]">
               {city}
             </span>
           )}
           {loading && (
-            <span className="px-2 py-0.5 bg-blue-500/10 text-blue-500 rounded-full text-[10px] flex items-center gap-1">
+            <span className="px-2 py-0.5 bg-blue-500/10 text-blue-500 rounded-full text-[0.625rem] flex items-center gap-1">
               <i className="fa-solid fa-spinner animate-spin fa-xs" /> Localising...
             </span>
           )}
@@ -86,7 +86,7 @@ const LocationSuggestions: React.FC<{ city: string; vehicle: string }> = ({ city
         {city && !loading && (
           <button
             onClick={handleRefresh}
-            className="text-[10px] font-black text-slate-400 hover:text-emerald-500 transition-colors uppercase tracking-widest flex items-center gap-1"
+            className="text-[0.625rem] font-black text-slate-400 hover:text-emerald-500 transition-colors uppercase tracking-widest flex items-center gap-1"
           >
             <i className="fa-solid fa-rotate-right" /> Refresh
           </button>
@@ -104,13 +104,13 @@ const LocationSuggestions: React.FC<{ city: string; vehicle: string }> = ({ city
             </div>
             <div className="flex-1 min-w-0">
               <div className="font-black text-slate-800 dark:text-white text-xs">{s.mode}</div>
-              <div className="text-[11px] text-slate-500 dark:text-slate-300 font-medium leading-tight mt-0.5">{s.description}</div>
+              <div className="text-[0.6875rem] text-slate-500 dark:text-slate-300 font-medium leading-tight mt-0.5">{s.description}</div>
             </div>
             <div className="flex-shrink-0 text-right">
               <div className="text-xs font-black text-emerald-600 dark:text-emerald-400">
                 -{s.savingVsCarPct}%
               </div>
-              <div className="text-[10px] text-slate-400 font-bold">
+              <div className="text-[0.625rem] text-slate-400 font-bold">
                 {s.co2PerKm === 0 ? 'Zero CO₂' : `${s.co2PerKm.toFixed(3)} kg/km`}
               </div>
             </div>
@@ -120,7 +120,7 @@ const LocationSuggestions: React.FC<{ city: string; vehicle: string }> = ({ city
 
       {!city && (
         <div className="mt-3 p-3 bg-amber-50 dark:bg-amber-500/10 rounded-xl text-center">
-          <p className="text-[10px] font-black text-amber-600 dark:text-amber-400 uppercase tracking-[0.12em]">
+          <p className="text-[0.625rem] font-black text-amber-600 dark:text-amber-400 uppercase tracking-[0.12em]">
             <i className="fa-solid fa-location-arrow mr-1" />
             Allow location access for city-specific suggestions
           </p>
@@ -147,19 +147,19 @@ const ConfidenceExplainer: React.FC<{ confidence: number; tripCount: number }> =
     <div className="relative">
       <button
         onClick={() => setShow(s => !s)}
-        className="text-[10px] font-black text-blue-400 hover:text-blue-500 underline underline-offset-2 uppercase tracking-widest"
+        className="text-[0.625rem] font-black text-blue-400 hover:text-blue-500 underline underline-offset-2 uppercase tracking-widest"
       >
         Why {confidence}%?
       </button>
       {show && (
         <div className="absolute bottom-full left-0 mb-2 z-50 w-72 bg-slate-900 rounded-2xl p-4 shadow-2xl border border-slate-700 animate-in zoom-in-95">
-          <h4 className="text-[11px] font-black text-white uppercase tracking-[0.14em] mb-3">Confidence Score</h4>
-          <p className="text-[10px] text-slate-300 font-medium mb-3 leading-relaxed">
+          <h4 className="text-[0.6875rem] font-black text-white uppercase tracking-[0.14em] mb-3">Confidence Score</h4>
+          <p className="text-[0.625rem] text-slate-300 font-medium mb-3 leading-relaxed">
             This score reflects how confidently the ML model can forecast your emissions. More data = higher confidence.
           </p>
           <div className="space-y-2">
             {factors.map((f, i) => (
-              <div key={i} className="text-[10px]">
+              <div key={i} className="text-[0.625rem]">
                 <div className="flex justify-between text-slate-200 font-bold mb-0.5">
                   <span>{f.label}</span>
                   <span className="text-slate-400">{f.weight}pts</span>
@@ -168,7 +168,7 @@ const ConfidenceExplainer: React.FC<{ confidence: number; tripCount: number }> =
               </div>
             ))}
           </div>
-          <div className="mt-3 pt-3 border-t border-slate-700 text-[10px] text-emerald-400 font-black">
+          <div className="mt-3 pt-3 border-t border-slate-700 text-[0.625rem] text-emerald-400 font-black">
             ✓ Reaches 95%+ after 20+ trips across 2 weeks
           </div>
           <button onClick={() => setShow(false)} className="absolute top-2 right-3 text-slate-500 hover:text-white text-xs">✕</button>
@@ -204,28 +204,30 @@ const AIAdvisor: React.FC<AIAdvisorProps> = ({ insight, loading, userCity, mostU
     : 3;
 
   return (
-    <div className="space-y-8 pt-4 pb-24">
+    // The conditional blocks below render inside fragments, so their cards
+    // become direct grid items and flow into two columns on wide screens.
+    <div className="grid gap-6 xl:grid-cols-2 xl:items-start pt-6 pb-4">
       {/* Header card */}
-      <div className="relative animate-fade-in-up opacity-0" style={{ animationDelay: '0ms' }}>
+      <div className="xl:col-span-2 relative animate-fade-in-up opacity-0" style={{ animationDelay: '0ms' }}>
         <div className="absolute inset-0 bg-emerald-500 blur-3xl opacity-10 rounded-full" />
-        <div className="relative glass p-8 rounded-[2.5rem] text-center border-slate-200 dark:border-white/10 bg-white/50 dark:bg-slate-900/50">
-          <div className="w-20 h-20 bg-slate-900 dark:bg-emerald-500 rounded-[2rem] flex items-center justify-center mx-auto mb-6 shadow-xl">
+        <div className="relative glass p-8 rounded-card-lg text-center border-slate-200 dark:border-white/10 bg-white/50 dark:bg-slate-900/50">
+          <div className="w-20 h-20 bg-slate-900 dark:bg-emerald-500 rounded-card flex items-center justify-center mx-auto mb-6 shadow-xl">
             <i className={`fa-solid fa-brain text-3xl ${loading ? 'text-emerald-400 animate-pulse' : 'text-white'}`} />
           </div>
           <h2 className="text-2xl font-black text-slate-800 dark:text-white tracking-tight">AI Advisor</h2>
 
           {insight && !loading && (
             <div className="flex flex-wrap items-center justify-center gap-2 mt-3">
-              <span className={`px-3 py-1 text-[10px] font-black uppercase tracking-widest rounded-full ${riskColor}`}>
+              <span className={`px-3 py-1 text-[0.625rem] font-black uppercase tracking-widest rounded-full ${riskColor}`}>
                 {insight.risk} Risk
               </span>
               {insight.mlConfidence !== undefined && (
-                <span className="px-3 py-1 text-[10px] font-black uppercase tracking-widest rounded-full bg-blue-500/10 text-blue-500">
+                <span className="px-3 py-1 text-[0.625rem] font-black uppercase tracking-widest rounded-full bg-blue-500/10 text-blue-500">
                   {insight.mlConfidence}% ML Confidence
                 </span>
               )}
               {isEliteEfficiency && (
-                <span className="px-3 py-1 bg-emerald-500 text-white text-[10px] font-black uppercase tracking-widest rounded-full">
+                <span className="px-3 py-1 bg-emerald-500 text-white text-[0.625rem] font-black uppercase tracking-widest rounded-full">
                   <i className="fa-solid fa-crown mr-1" /> Elite
                 </span>
               )}
@@ -263,15 +265,15 @@ const AIAdvisor: React.FC<AIAdvisorProps> = ({ insight, loading, userCity, mostU
         <>
           {/* Behavioral Patterns */}
           {insight!.patterns && (
-            <div className="glass p-6 rounded-[2.5rem] bg-white dark:bg-slate-900/40 animate-fade-in-up opacity-0" style={{ animationDelay: '200ms' }}>
-              <h3 className="text-[11px] font-black text-slate-400 uppercase tracking-[0.16em] mb-6 flex items-center gap-2">
+            <div className="glass p-6 rounded-card-lg bg-white dark:bg-slate-900/40 animate-fade-in-up opacity-0" style={{ animationDelay: '200ms' }}>
+              <h3 className="text-[0.6875rem] font-black text-slate-400 uppercase tracking-[0.16em] mb-6 flex items-center gap-2">
                 <i className="fa-solid fa-chart-line" />
                 Behavioral Pattern Analysis
               </h3>
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="p-4 bg-slate-50 dark:bg-slate-800/50 rounded-2xl">
-                  <div className="text-[11px] font-black text-slate-400 uppercase mb-1">Carbon Trend</div>
+                  <div className="text-[0.6875rem] font-black text-slate-400 uppercase mb-1">Carbon Trend</div>
                   <div className="flex items-center gap-2">
                     <i className={`fa-solid ${insight!.patterns!.carbonTrend === 'decreasing' ? 'fa-arrow-down text-emerald-500' : insight!.patterns!.carbonTrend === 'increasing' ? 'fa-arrow-up text-rose-500' : 'fa-minus text-blue-500'}`} />
                     <span className="text-sm font-black text-slate-800 dark:text-white capitalize">
@@ -281,28 +283,28 @@ const AIAdvisor: React.FC<AIAdvisorProps> = ({ insight, loading, userCity, mostU
                 </div>
 
                 <div className="p-4 bg-slate-50 dark:bg-slate-800/50 rounded-2xl">
-                  <div className="text-[11px] font-black text-slate-400 uppercase mb-1">Avg Daily Distance</div>
+                  <div className="text-[0.6875rem] font-black text-slate-400 uppercase mb-1">Avg Daily Distance</div>
                   <div className="text-sm font-black text-slate-800 dark:text-white">
                     {insight!.patterns!.averageDailyDistance.toFixed(1)} <span className="text-xs text-slate-400">km</span>
                   </div>
                 </div>
 
                 <div className="p-4 bg-slate-50 dark:bg-slate-800/50 rounded-2xl col-span-2">
-                  <div className="text-[11px] font-black text-slate-400 uppercase mb-2">Peak Travel Days</div>
+                  <div className="text-[0.6875rem] font-black text-slate-400 uppercase mb-2">Peak Travel Days</div>
                   <div className="flex gap-2 flex-wrap">
                     {insight!.patterns!.peakTravelDays.length > 0
                       ? insight!.patterns!.peakTravelDays.map(day => (
-                        <span key={day} className="px-3 py-1 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-[10px] font-black rounded-lg uppercase tracking-[0.1em]">
+                        <span key={day} className="px-3 py-1 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-[0.625rem] font-black rounded-lg uppercase tracking-[0.1em]">
                           {day}
                         </span>
                       ))
-                      : <span className="text-[11px] text-slate-400 font-medium">Log more trips to see patterns</span>
+                      : <span className="text-[0.6875rem] text-slate-400 font-medium">Log more trips to see patterns</span>
                     }
                   </div>
                 </div>
 
                 <div className="p-4 bg-slate-50 dark:bg-slate-800/50 rounded-2xl col-span-2">
-                  <div className="text-[11px] font-black text-slate-400 uppercase mb-1">Most Used Vehicle</div>
+                  <div className="text-[0.6875rem] font-black text-slate-400 uppercase mb-1">Most Used Vehicle</div>
                   <div className="flex items-center gap-2">
                     <i className="fa-solid fa-car text-emerald-500" />
                     <span className="text-sm font-black text-slate-800 dark:text-white">
@@ -315,8 +317,8 @@ const AIAdvisor: React.FC<AIAdvisorProps> = ({ insight, loading, userCity, mostU
           )}
 
           {/* Regional Benchmarking */}
-          <div className="glass p-6 rounded-[2.5rem] bg-white dark:bg-slate-900/40 animate-fade-in-up opacity-0" style={{ animationDelay: '300ms' }}>
-            <h3 className="text-[11px] font-black text-slate-400 uppercase tracking-[0.16em] mb-6">Regional Benchmarking</h3>
+          <div className="glass p-6 rounded-card-lg bg-white dark:bg-slate-900/40 animate-fade-in-up opacity-0" style={{ animationDelay: '300ms' }}>
+            <h3 className="text-[0.6875rem] font-black text-slate-400 uppercase tracking-[0.16em] mb-6">Regional Benchmarking</h3>
             <div className="w-full" style={{ minWidth: 0 }}>
               <ResponsiveContainer width="100%" height={192} minWidth={0}>
                 <BarChart data={savingsData} margin={{ top: 30, right: 10, left: -20, bottom: 0 }}>
@@ -344,11 +346,11 @@ const AIAdvisor: React.FC<AIAdvisorProps> = ({ insight, loading, userCity, mostU
             <div className="grid grid-cols-2 gap-3 mt-6">
               <div className="flex items-center gap-2 p-3 bg-slate-50 dark:bg-slate-800/50 rounded-xl">
                 <div className="w-3 h-3 rounded bg-slate-400" />
-                <span className="text-[11px] font-black text-slate-600 dark:text-slate-300">Your Current Trend</span>
+                <span className="text-[0.6875rem] font-black text-slate-600 dark:text-slate-300">Your Current Trend</span>
               </div>
               <div className="flex items-center gap-2 p-3 bg-emerald-50 dark:bg-emerald-500/10 rounded-xl">
                 <div className="w-3 h-3 rounded bg-emerald-500" />
-                <span className="text-[11px] font-black text-emerald-600 dark:text-emerald-400">Optimized Target</span>
+                <span className="text-[0.6875rem] font-black text-emerald-600 dark:text-emerald-400">Optimized Target</span>
               </div>
             </div>
           </div>
@@ -356,13 +358,13 @@ const AIAdvisor: React.FC<AIAdvisorProps> = ({ insight, loading, userCity, mostU
           {/* Recommendations */}
           <div className="space-y-4 animate-fade-in-up opacity-0" style={{ animationDelay: '400ms' }}>
             <div className="flex items-center justify-between px-1">
-              <h3 className="text-[11px] font-black text-slate-400 uppercase tracking-[0.16em]">Personal Protocols</h3>
-              <span className={`text-[10px] font-black px-2 py-1 rounded-lg tracking-[0.12em] ${isEliteEfficiency ? 'bg-emerald-500 text-white' : 'bg-emerald-500/10 text-emerald-500'}`}>
+              <h3 className="text-[0.6875rem] font-black text-slate-400 uppercase tracking-[0.16em]">Personal Protocols</h3>
+              <span className={`text-[0.625rem] font-black px-2 py-1 rounded-lg tracking-[0.12em] ${isEliteEfficiency ? 'bg-emerald-500 text-white' : 'bg-emerald-500/10 text-emerald-500'}`}>
                 {isEliteEfficiency ? 'ELITE STATUS' : 'CALIBRATED'}
               </span>
             </div>
             {(insight!.recommendations ?? []).map((rec, i) => (
-              <div key={i} className="glass interactive p-5 rounded-[2.5rem] flex items-start gap-5 border-slate-200 dark:border-white/5 hover:bg-white dark:hover:bg-slate-800 transition-all duration-300 group">
+              <div key={i} className="glass interactive p-5 rounded-card-lg flex items-start gap-5 border-slate-200 dark:border-white/5 hover:bg-white dark:hover:bg-slate-800 transition-all duration-300 group">
                 <div className="w-14 h-14 rounded-2xl bg-slate-900 dark:bg-slate-800 text-emerald-500 flex items-center justify-center flex-shrink-0 text-2xl shadow-lg transition-transform duration-300 group-hover:scale-110 group-active:scale-95">
                   <i className={`fa-solid ${recIcons[i % recIcons.length]}`} />
                 </div>
@@ -379,9 +381,9 @@ const AIAdvisor: React.FC<AIAdvisorProps> = ({ insight, loading, userCity, mostU
       )}
 
       {loading && !hasInsight && (
-        <div className="flex flex-col items-center justify-center py-24">
+        <div className="xl:col-span-2 flex flex-col items-center justify-center py-24">
           <div className="w-12 h-12 border-4 border-emerald-500/20 border-t-emerald-500 rounded-full animate-spin mb-6" />
-          <p className="text-[11px] font-black text-slate-400 uppercase tracking-[0.16em] animate-pulse"> Analyzing...</p>
+          <p className="text-[0.6875rem] font-black text-slate-400 uppercase tracking-[0.16em] animate-pulse"> Analyzing...</p>
         </div>
       )}
     </div>

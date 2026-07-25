@@ -282,12 +282,13 @@ const MonthlyReport: React.FC<MonthlyReportProps> = ({ user, trips, bills, onClo
     };
 
     return (
-        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/70 backdrop-blur-sm p-4 animate-in fade-in duration-300">
-            <div className="w-full max-w-md bg-slate-900 rounded-[2.5rem] p-6 space-y-5 animate-in slide-in-from-bottom-8 duration-400 max-h-[90vh] overflow-y-auto">
+        // Bottom sheet on phones, centred dialog once there is room for one.
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/70 backdrop-blur-sm p-4 animate-in fade-in duration-300">
+            <div className="w-full max-w-md sm:max-w-lg bg-slate-900 rounded-card-lg p-6 sm:p-8 space-y-5 animate-in slide-in-from-bottom-8 duration-400 max-h-[90vh] overflow-y-auto">
                 <div className="flex items-center justify-between">
                     <div>
                         <h3 className="text-lg font-black text-white">Monthly Report</h3>
-                        <p className="text-[11px] text-slate-400 font-bold uppercase tracking-[0.12em]">{stats.monthName} {stats.year}</p>
+                        <p className="text-[0.6875rem] text-slate-400 font-bold uppercase tracking-[0.12em]">{stats.monthName} {stats.year}</p>
                     </div>
                     <button onClick={onClose} className="w-9 h-9 bg-slate-800 rounded-2xl flex items-center justify-center text-slate-400 hover:text-white transition-colors">
                         <i className="fa-solid fa-xmark" />
@@ -309,7 +310,7 @@ const MonthlyReport: React.FC<MonthlyReportProps> = ({ user, trips, bills, onClo
                         <div key={s.label} className="p-3 bg-slate-800 rounded-2xl text-center">
                             <div className="text-lg mb-0.5">{s.icon}</div>
                             <div className="text-sm font-black text-white">{s.value}</div>
-                            <div className="text-[10px] text-slate-400 font-black uppercase tracking-widest">{s.label}</div>
+                            <div className="text-[0.625rem] text-slate-400 font-black uppercase tracking-widest">{s.label}</div>
                         </div>
                     ))}
                 </div>

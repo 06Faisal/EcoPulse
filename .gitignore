@@ -13,11 +13,28 @@ dist-ssr
 
 # Env files
 .env
+.env.*
+!.env.example
 *.local
 
-# ML artifacts
+# ML artifacts — trained models are pickles (executable on load) and the
+# SQLite database holds user data. Neither belongs in version control.
+data/
+models/
 backend/data/
 backend/models/
+*.pkl
+*.joblib
+*.db
+
+# Generated evaluation output (regenerate with `python evaluate.py`)
+evaluation_results/
+*.png
+!public/icons/*.png
+
+# Test tooling scratch output
+.testsprite/
+testsprite-plans/
 
 # Editor directories and files
 .vscode/*
@@ -29,9 +46,10 @@ backend/models/
 *.njsproj
 *.sln
 *.sw?
+
 # Python
 __pycache__/
 *.pyc
 *.pyo
 *.pyd
-
+.venv/

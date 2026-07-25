@@ -98,10 +98,45 @@ create policy "Users can insert their own profile"
   to authenticated
   with check (auth.uid() = id);
 
+-- WITH CHECK is stated explicitly rather than relying on Postgres defaulting
+-- it to the USING expression, so a later edit to USING cannot silently widen
+-- what a user is allowed to write.
 create policy "Users can update their own profile"
   on profiles for update
   to authenticated
-  using (auth.uid() = id);
+  using (auth.uid() = id)
+  with check (auth.uid() = id);
+
+-- `username` is the login identity: the auth email is derived from it. Letting
+-- a client change it would leave the account unreachable under its displayed
+-- name and free the old name for another user to claim. RLS cannot restrict
+-- individual columns, so enforce immutability with a trigger.
+create or replace function prevent_username_change()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if new.username is distinct from old.username then
+    raise exception 'username cannot be changed';
+  end if;
+  return new;
+end;
+$$;
+
+drop trigger if exists profiles_username_immutable on profiles;
+create trigger profiles_username_immutable
+  before update on profiles
+  for each row
+  execute function prevent_username_change();
+
+-- KNOWN LIMITATION: `points` is written by the client, so a user can PATCH
+-- their own profile row directly against the REST API and set an arbitrary
+-- score. RLS cannot express "only increase, and only by an amount the server
+-- agrees with". Closing this properly means awarding points in a
+-- SECURITY DEFINER function (or Edge Function) that recomputes the delta from
+-- the user's trips, and revoking direct UPDATE on the column.
 
 create policy "Users can access their trips"
   on trips for all

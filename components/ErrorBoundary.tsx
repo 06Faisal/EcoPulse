@@ -35,7 +35,7 @@ class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundarySta
                             EcoPulse encountered an unexpected error. Your data is safe — try reloading the app.
                         </p>
                         {this.state.error && (
-                            <div className="p-3 bg-slate-100 dark:bg-slate-900 rounded-xl text-[11px] text-slate-400 font-mono mb-6 text-left break-all">
+                            <div className="p-3 bg-slate-100 dark:bg-slate-900 rounded-xl text-[0.6875rem] text-slate-400 font-mono mb-6 text-left break-all">
                                 {this.state.error.message}
                             </div>
                         )}

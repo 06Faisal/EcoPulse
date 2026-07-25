@@ -1,13 +1,70 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { Trip, AIInsight, UtilityBill, TransportSuggestion } from "./types";
+import { supabase } from "./supabaseClient";
 
-const apiKey = import.meta.env.VITE_GEMINI_API_KEY || "";
+// ─── Gemini transport ────────────────────────────────────────────────────────
+//
+// Vite inlines every `import.meta.env.VITE_*` value into the JavaScript it
+// ships, so a key referenced here is readable by anyone who opens the deployed
+// bundle. Production therefore routes through the backend proxy
+// (VITE_AI_PROXY_URL), which holds the real key server-side and requires a
+// signed-in Supabase session.
+//
+// VITE_GEMINI_API_KEY remains supported for local development only, and is
+// ignored entirely in production builds.
 
-if (!apiKey) {
-  console.warn("VITE_GEMINI_API_KEY not found");
+const proxyUrl = (import.meta.env.VITE_AI_PROXY_URL || "").replace(/\/+$/, "");
+const devApiKey = import.meta.env.DEV
+  ? import.meta.env.VITE_GEMINI_API_KEY || ""
+  : "";
+
+/** True when Gemini can be reached, via proxy or a local dev key. */
+const aiAvailable = Boolean(proxyUrl || devApiKey);
+
+if (!aiAvailable) {
+  console.warn(
+    "Gemini is not configured. Set VITE_AI_PROXY_URL (recommended) or, for local development only, VITE_GEMINI_API_KEY."
+  );
 }
 
-const ai = new GoogleGenAI({ apiKey });
+if (!proxyUrl && devApiKey) {
+  console.warn(
+    "Using VITE_GEMINI_API_KEY directly. Never do this in a production build - the key would ship in the bundle."
+  );
+}
+
+const directClient = proxyUrl ? null : new GoogleGenAI({ apiKey: devApiKey });
+
+let cachedProxyClient: { token: string; client: GoogleGenAI } | null = null;
+
+/**
+ * Returns a Gemini client. In proxy mode the caller's current Supabase access
+ * token is attached, so the proxy can reject anonymous callers. Tokens rotate,
+ * so the client is rebuilt whenever the token changes.
+ */
+async function getAi(): Promise<GoogleGenAI> {
+  if (directClient) return directClient;
+
+  const { data } = await supabase.auth.getSession();
+  const token = data.session?.access_token || "";
+  if (!token) {
+    throw new Error("Sign in required to use AI features.");
+  }
+
+  if (cachedProxyClient?.token === token) return cachedProxyClient.client;
+
+  const client = new GoogleGenAI({
+    // The proxy supplies the real credential; this placeholder only stops the
+    // SDK short-circuiting on a missing key.
+    apiKey: "via-proxy",
+    httpOptions: {
+      baseUrl: proxyUrl,
+      headers: { Authorization: `Bearer ${token}` },
+    },
+  });
+  cachedProxyClient = { token, client };
+  return client;
+}
 
 // ─── Prediction Cache (in-memory + localStorage) ────────────────────────────
 
@@ -216,7 +273,7 @@ export const predictEmissionFactor = async (
     return cached;
   }
 
-  if (!apiKey) {
+  if (!aiAvailable) {
     return { factor: 0.15, confidence: 30, category: "gas" };
   }
 
@@ -232,7 +289,7 @@ Reference ranges:
 CRITICAL: Factor MUST be 0.01-0.50 (NO negatives). Return JSON with factor, confidence (0-100), category, reasoning.`;
 
   try {
-    const response = await ai.models.generateContent({
+    const response = await (await getAi()).models.generateContent({
       model: "gemini-2.0-flash",   // cheaper model for emission prediction
       contents: prompt,
       config: {
@@ -361,7 +418,7 @@ export const getAIAnalytics = async (
   };
 
   let recommendations: string[] = [];
-  const allowRemote = Boolean(apiKey) && !options?.skipRemote;
+  const allowRemote = aiAvailable && !options?.skipRemote;
 
   // Cache recommendations for 6h — same conditions shouldn't re-burn quota
   const recCacheKey = cacheKey(['recs', cluster, trend.direction, String(Math.round(totalDaily * 2))]);
@@ -411,7 +468,7 @@ REQUIREMENTS:
 
 Return JSON with a "recommendations" array of exactly 3 strings.`;
 
-      const aiResponse = await ai.models.generateContent({
+      const aiResponse = await (await getAi()).models.generateContent({
         model: "gemini-2.5-flash",
         contents: aiPrompt,
         config: {
@@ -449,7 +506,7 @@ Return JSON with a "recommendations" array of exactly 3 strings.`;
       }
       recommendations = buildFallbackRecommendations();
     }
-  } else if (!apiKey && !options?.skipRemote) {
+  } else if (!aiAvailable && !options?.skipRemote) {
     recommendations = [
       `You're in the '${cluster}' cluster at ${totalDaily.toFixed(
         1
@@ -561,12 +618,12 @@ export const verifyOdometerImage = async (
   confidence: number;
   reasoning?: string;
 }> => {
-  if (!apiKey) {
+  if (!aiAvailable) {
     return { odometer: 0, confidence: 0, reasoning: "API key required" };
   }
 
   try {
-    const response = await ai.models.generateContent({
+    const response = await (await getAi()).models.generateContent({
       model: "gemini-2.0-flash",
       contents: {
         parts: [
@@ -614,12 +671,12 @@ export const verifyBillImage = async (
   isAnomalous: boolean;
   reasoning?: string;
 }> => {
-  if (!apiKey) {
+  if (!aiAvailable) {
     return { units: 0, confidence: 0, isAnomalous: false, reasoning: "API key required" };
   }
 
   try {
-    const response = await ai.models.generateContent({
+    const response = await (await getAi()).models.generateContent({
       model: "gemini-2.0-flash",  // cheaper model OK for OCR
       contents: {
         parts: [
@@ -681,7 +738,7 @@ export interface VehicleLookupResult {
 export const lookupVehicleByPlate = async (
   regNumber: string
 ): Promise<VehicleLookupResult> => {
-  if (!apiKey) {
+  if (!aiAvailable) {
     return { make: '', model: '', fuelType: '', vehicleType: '', source: 'error', error: 'No Gemini API key configured.' };
   }
 
@@ -711,7 +768,7 @@ If you cannot confidently infer a field, use an empty string for text fields or 
 Respond ONLY with a valid JSON object:
 {"make":"Honda","model":"Activa 6G","fuelType":"petrol","vehicleType":"scooter","year":2021}`;
 
-    const response = await ai.models.generateContent({
+    const response = await (await getAi()).models.generateContent({
       model: 'gemini-2.0-flash',
       contents: prompt,
       config: {
@@ -775,7 +832,7 @@ export const getLocationBasedSuggestions = async (
   const cached = readCache<TransportSuggestion[]>(key, LOCATION_CACHE_TTL_MS);
   if (cached) return cached;
 
-  if (!apiKey) {
+  if (!aiAvailable) {
     return FALLBACK_SUGGESTIONS.default;
   }
 
@@ -797,7 +854,7 @@ For each option provide:
 
 Return JSON: { "suggestions": [ { "mode": "", "description": "", "co2PerKm": 0.0, "savingVsCarPct": 0, "icon": "" } ] }`;
 
-    const response = await ai.models.generateContent({
+    const response = await (await getAi()).models.generateContent({
       model: "gemini-2.0-flash",
       contents: prompt,
       config: {

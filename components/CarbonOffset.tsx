@@ -54,7 +54,7 @@ const CarbonOffset: React.FC<CarbonOffsetProps> = ({ trips, bills }) => {
     const treesNeeded = Math.ceil(totalCO2 / 4); // rough: 4kg CO₂ per tree per year (monthly portion)
 
     return (
-        <div className="glass p-6 rounded-[2rem] border-slate-200 dark:border-white/10">
+        <div className="glass p-6 rounded-card border-slate-200 dark:border-white/10">
             {/* Header */}
             <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-3">
@@ -63,15 +63,15 @@ const CarbonOffset: React.FC<CarbonOffsetProps> = ({ trips, bills }) => {
                     </div>
                     <div>
                         <h3 className="text-sm font-black text-slate-800 dark:text-white">Carbon Offsets</h3>
-                        <p className="text-[11px] text-slate-400 font-bold uppercase tracking-[0.1em]">Neutralise your footprint</p>
+                        <p className="text-[0.6875rem] text-slate-400 font-bold uppercase tracking-[0.1em]">Neutralise your footprint</p>
                     </div>
                 </div>
                 <button
                     onClick={() => setExpanded(e => !e)}
-                    className="text-[10px] font-black text-emerald-500 uppercase tracking-widest flex items-center gap-1 hover:text-emerald-400 transition-colors"
+                    className="text-[0.625rem] font-black text-emerald-500 uppercase tracking-widest flex items-center gap-1 hover:text-emerald-400 transition-colors"
                 >
                     {expanded ? 'Close' : 'Explore'}
-                    <i className={`fa-solid fa-chevron-${expanded ? 'up' : 'down'} text-[9px]`} />
+                    <i className={`fa-solid fa-chevron-${expanded ? 'up' : 'down'} text-[0.5625rem]`} />
                 </button>
             </div>
 
@@ -79,7 +79,7 @@ const CarbonOffset: React.FC<CarbonOffsetProps> = ({ trips, bills }) => {
             <div className="p-4 bg-gradient-to-r from-emerald-500/10 to-teal-500/10 rounded-2xl border border-emerald-500/20 mb-4">
                 <div className="flex items-center justify-between">
                     <div>
-                        <div className="text-[11px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-[0.12em] mb-1">
+                        <div className="text-[0.6875rem] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-[0.12em] mb-1">
                             This month's footprint
                         </div>
                         <div className="text-2xl font-black text-slate-800 dark:text-white">
@@ -90,7 +90,7 @@ const CarbonOffset: React.FC<CarbonOffsetProps> = ({ trips, bills }) => {
                         </div>
                     </div>
                     <div className="text-right">
-                        <div className="text-[11px] font-black text-slate-400 uppercase mb-1">Est. offset cost</div>
+                        <div className="text-[0.6875rem] font-black text-slate-400 uppercase mb-1">Est. offset cost</div>
                         <div className="text-xl font-black text-slate-700 dark:text-slate-200">
                             ₹{Math.ceil(totalCO2 * 1.5)}
                             <span className="text-xs text-slate-400 font-medium ml-1">– ₹{Math.ceil(totalCO2 * 2.1)}</span>
@@ -102,9 +102,10 @@ const CarbonOffset: React.FC<CarbonOffsetProps> = ({ trips, bills }) => {
             {/* Offset providers */}
             {expanded && (
                 <div className="space-y-3 animate-in fade-in slide-in-from-bottom-2 duration-300">
-                    <p className="text-[11px] font-black text-slate-400 uppercase tracking-[0.14em] px-1">
+                    <p className="text-[0.6875rem] font-black text-slate-400 uppercase tracking-[0.14em] px-1">
                         Verified Offset Providers
                     </p>
+                    <div className="grid gap-3 md:grid-cols-2">
                     {OFFSET_PROVIDERS.map((p) => (
                         <a
                             key={p.name}
@@ -119,9 +120,9 @@ const CarbonOffset: React.FC<CarbonOffsetProps> = ({ trips, bills }) => {
                             <div className="flex-1 min-w-0">
                                 <div className="flex items-center gap-2 flex-wrap">
                                     <span className="font-black text-slate-800 dark:text-white text-xs">{p.name}</span>
-                                    <span className="text-[10px] bg-slate-200 dark:bg-slate-700 text-slate-500 dark:text-slate-300 px-2 py-0.5 rounded-full">{p.badge}</span>
+                                    <span className="text-[0.625rem] bg-slate-200 dark:bg-slate-700 text-slate-500 dark:text-slate-300 px-2 py-0.5 rounded-full">{p.badge}</span>
                                 </div>
-                                <p className="text-[11px] text-slate-500 dark:text-slate-300 font-medium leading-tight mt-0.5">
+                                <p className="text-[0.6875rem] text-slate-500 dark:text-slate-300 font-medium leading-tight mt-0.5">
                                     {p.description}
                                 </p>
                             </div>
@@ -129,15 +130,16 @@ const CarbonOffset: React.FC<CarbonOffsetProps> = ({ trips, bills }) => {
                                 <div className="text-xs font-black text-emerald-600 dark:text-emerald-400">
                                     ₹{p.pricePerKg.toFixed(1)}/kg
                                 </div>
-                                <div className="text-[10px] text-slate-400">
+                                <div className="text-[0.625rem] text-slate-400">
                                     ₹{Math.ceil(totalCO2 * p.pricePerKg)} total
                                 </div>
-                                <i className="fa-solid fa-arrow-up-right-from-square text-[10px] text-slate-400 group-hover:text-emerald-500 transition-colors mt-1" />
+                                <i className="fa-solid fa-arrow-up-right-from-square text-[0.625rem] text-slate-400 group-hover:text-emerald-500 transition-colors mt-1" />
                             </div>
                         </a>
                     ))}
+                    </div>
 
-                    <p className="text-[10px] text-slate-400 font-medium text-center pt-1 px-2">
+                    <p className="text-[0.625rem] text-slate-400 font-medium text-center pt-1 px-2">
                         Prices are estimates. ₹/kg varies by project type and provider.
                     </p>
                 </div>

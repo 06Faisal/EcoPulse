@@ -1,31 +1,45 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <!-- No maximum-scale / user-scalable=no: blocking pinch-zoom fails WCAG 1.4.4 -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>EcoPulse AI — Carbon Footprint Tracker</title>
     <meta name="description" content="Track your carbon footprint and reduce your environmental impact with AI-powered insights and personalised recommendations.">
     <meta name="theme-color" content="#10b981">
+    <meta name="referrer" content="strict-origin-when-cross-origin">
+    <!-- A Content-Security-Policy meta tag is injected at build time by the
+         csp() plugin in vite.config.ts. It is omitted in dev so Vite's HMR
+         preamble keeps working. -->
+
     <!-- PWA -->
     <link rel="manifest" href="/manifest.json">
     <link rel="apple-touch-icon" href="/favicon.svg">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
     <meta name="apple-mobile-web-app-title" content="EcoPulse">
+
     <!-- Open Graph (for sharing) -->
     <meta property="og:title" content="EcoPulse AI">
     <meta property="og:description" content="Track your carbon footprint with AI-powered insights.">
     <meta property="og:type" content="website">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+
     <link rel="icon" type="image/svg+xml" href="/favicon.svg">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/index.css">
+
+    <!-- Third-party stylesheet pinned with Subresource Integrity: if the CDN
+         ever serves different bytes, the browser refuses to apply them. -->
+    <link rel="stylesheet"
+          href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"
+          integrity="sha384-t1nt8BQoYMLFN5p42tRAtuAAFQaCQODekUVeKKZrEnEyp4H2R0RHFz0KWpmj7i8g"
+          crossorigin="anonymous"
+          referrerpolicy="no-referrer">
+    <link rel="stylesheet" href="/index.css">
 </head>
 <body class="bg-slate-50 text-slate-900 transition-colors duration-300">
     <div id="root"></div>
-<script type="module" src="/index.tsx"></script>
+    <script type="module" src="/index.tsx"></script>
 </body>
 </html>

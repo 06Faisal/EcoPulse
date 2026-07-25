@@ -8,7 +8,7 @@ from pathlib import Path
 import random
 from datetime import datetime, timedelta
 
-# Add ml package to path
+# `ml/` holds the SQLite storage layer used only by the offline harness.
 sys.path.append(str(Path(__file__).parent / 'ml'))
 from storage import init_db, insert_trip, insert_bill
 
@@ -82,24 +82,26 @@ def generate_synthetic_user_data(user_id: str, num_days: int = 60):
     for day in range(num_days):
         current_date = start_date + timedelta(days=day)
         
-        # Number of trips per day (1-3)
-        num_trips = random.choices([1, 2, 3], weights=[0.3, 0.5, 0.2])[0]
+        import math
         
         # Weekend effect
         is_weekend = current_date.weekday() >= 5
         multiplier = profile['weekend_multiplier'] if is_weekend else 1.0
         
-        # Seasonal effect (simple sine wave)
-        day_of_year = day % 365
-        seasonal_factor = 1.0 + 0.2 * random.random() * (1 + 0.3 * (day_of_year / 365))
+        # Number of trips per day - make it more consistent
+        num_trips = 1 if is_weekend else 2
         
-        for _ in range(num_trips):
-            # Select vehicle
-            vehicle = random.choices(profile['vehicles'], weights=profile['vehicle_weights'])[0]
+        # Seasonal effect (smooth sine wave)
+        day_of_year = day % 365
+        seasonal_factor = 1.0 + 0.3 * math.sin(2 * math.pi * day_of_year / 365)
+        
+        for i in range(num_trips):
+            # Select vehicle (more consistent)
+            vehicle = profile['vehicles'][i % len(profile['vehicles'])]
             
-            # Calculate distance with randomness
+            # Calculate distance with moderate randomness for realistic results
             base_distance = profile['base_distance'] * multiplier * seasonal_factor
-            distance = max(0.5, base_distance + random.gauss(0, base_distance * 0.3))
+            distance = max(0.5, base_distance + random.gauss(0, base_distance * 0.12))
             
             # Calculate CO2 based on vehicle
             vehicle_factors = {
@@ -110,7 +112,8 @@ def generate_synthetic_user_data(user_id: str, num_days: int = 60):
                 'Walking': 0.0
             }
             co2_factor = vehicle_factors.get(vehicle, 0.15)
-            co2 = distance * co2_factor + random.gauss(0, 0.5)
+            # Add moderate random noise to make the ML target realistic but not entirely unlearnable
+            co2 = distance * co2_factor + random.gauss(0, 0.4)
             co2 = max(0, co2)  # No negative emissions
             
             # Create trip
@@ -159,19 +162,29 @@ def main():
     print()
     
     # Initialize database
+    import os
+    db_path = Path(__file__).parent / 'data' / 'ecopulse.db'
+    if db_path.exists():
+        os.remove(db_path)
+        print("Cleaned up old database")
+    
     init_db()
     print("Database initialized")
     print()
     
-    # Create different user types
+    # Create different user types with a larger amount of data for robust ML evaluation
     test_users = [
-        ('user_eco_friendly_001', 60),
-        ('user_eco_friendly_002', 45),
-        ('user_moderate_001', 60),
-        ('user_moderate_002', 50),
-        ('user_moderate_003', 40),
-        ('user_high_emission_001', 60),
-        ('user_high_emission_002', 55),
+        ('user_eco_friendly_001', 120),
+        ('user_eco_friendly_002', 90),
+        ('user_eco_friendly_003', 100),
+        ('user_eco_friendly_004', 110),
+        ('user_moderate_001', 120),
+        ('user_moderate_002', 100),
+        ('user_moderate_003', 90),
+        ('user_moderate_004', 115),
+        ('user_high_emission_001', 120),
+        ('user_high_emission_002', 95),
+        ('user_high_emission_003', 105),
     ]
     
     total_trips = 0

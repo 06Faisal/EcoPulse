@@ -219,8 +219,9 @@ const ShareCard: React.FC<ShareCardProps> = ({ user, trips, bills, onClose }) =>
     };
 
     return (
-        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-300">
-            <div className="w-full max-w-md bg-slate-900 rounded-[2.5rem] p-6 space-y-5 animate-in slide-in-from-bottom-8 duration-400">
+        // Bottom sheet on phones, centred dialog once there is room for one.
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-300">
+            <div className="w-full max-w-md bg-slate-900 rounded-card-lg p-6 space-y-5 animate-in slide-in-from-bottom-8 duration-400 max-h-[90vh] overflow-y-auto">
                 <div className="flex items-center justify-between">
                     <h3 className="text-lg font-black text-white">Your Carbon Report</h3>
                     <button onClick={onClose} className="w-8 h-8 bg-slate-800 rounded-xl flex items-center justify-center text-slate-400 hover:text-white transition-colors">
@@ -236,11 +237,11 @@ const ShareCard: React.FC<ShareCardProps> = ({ user, trips, bills, onClose }) =>
                 {/* Stats summary */}
                 <div className="grid grid-cols-2 gap-3">
                     <div className="p-3 bg-slate-800 rounded-2xl text-center">
-                        <div className="text-[11px] font-black text-slate-400 uppercase mb-1">CO₂ This Month</div>
+                        <div className="text-[0.6875rem] font-black text-slate-400 uppercase mb-1">CO₂ This Month</div>
                         <div className="text-lg font-black text-white">{totalCO2.toFixed(1)} <span className="text-xs text-slate-400">kg</span></div>
                     </div>
                     <div className="p-3 bg-emerald-500/10 rounded-2xl text-center border border-emerald-500/20">
-                        <div className="text-[11px] font-black text-emerald-400 uppercase mb-1">Saved vs Avg</div>
+                        <div className="text-[0.6875rem] font-black text-emerald-400 uppercase mb-1">Saved vs Avg</div>
                         <div className="text-lg font-black text-emerald-400">{savedCO2.toFixed(1)} <span className="text-xs">kg</span></div>
                     </div>
                 </div>

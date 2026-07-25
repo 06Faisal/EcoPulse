@@ -1,48 +1,101 @@
-
 import React from 'react';
 
+export type TabId = 'home' | 'track' | 'emissions' | 'ai' | 'challenges' | 'profile';
+
 interface NavigationProps {
-  activeTab: 'home' | 'track' | 'emissions' | 'ai' | 'profile' | 'challenges';
-  onTabChange: (tab: 'home' | 'track' | 'emissions' | 'ai' | 'profile' | 'challenges') => void;
+  activeTab: TabId;
+  onTabChange: (tab: TabId) => void;
 }
 
-const Navigation: React.FC<NavigationProps> = ({ activeTab, onTabChange }) => {
-  const tabs: { id: 'home' | 'track' | 'emissions' | 'ai' | 'challenges' | 'profile', icon: string, label: string }[] = [
-    { id: 'home', icon: 'fa-house-chimney', label: 'Home' },
-    { id: 'track', icon: 'fa-square-plus', label: 'Log' },
-    { id: 'emissions', icon: 'fa-chart-pie', label: 'Impact' },
-    { id: 'ai', icon: 'fa-brain', label: 'Advisor' },
-    { id: 'challenges', icon: 'fa-trophy', label: 'Compete' },
-    { id: 'profile', icon: 'fa-user-circle', label: 'Profile' },
-  ];
+const TABS: { id: TabId; icon: string; label: string; hint: string }[] = [
+  { id: 'home', icon: 'fa-house-chimney', label: 'Home', hint: 'Overview' },
+  { id: 'track', icon: 'fa-square-plus', label: 'Log', hint: 'Record a trip' },
+  { id: 'emissions', icon: 'fa-chart-pie', label: 'Impact', hint: 'Breakdown' },
+  { id: 'ai', icon: 'fa-brain', label: 'Advisor', hint: 'AI insights' },
+  { id: 'challenges', icon: 'fa-trophy', label: 'Compete', hint: 'Challenges' },
+  { id: 'profile', icon: 'fa-user-circle', label: 'Profile', hint: 'You' }
+];
 
-  const activeIndex = tabs.findIndex(t => t.id === activeTab);
-
-  return (
-    <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 w-[92%] max-w-md pointer-events-none">
-      <nav className="bg-white dark:bg-slate-950 border border-slate-200/50 dark:border-white/10 p-2 rounded-[2.5rem] flex justify-between items-center shadow-[0_20px_50px_rgba(0,0,0,0.15)] dark:shadow-[0_20px_50px_rgba(0,0,0,0.3)] pointer-events-auto relative overflow-hidden">
-        {/* Sliding active pill background */}
-        <div
-          className="absolute top-2 bottom-2 w-[calc((100%-16px)/6)] bg-emerald-500/10 dark:bg-emerald-500/20 rounded-[2rem] transition-transform duration-500 ease-[cubic-bezier(0.175,0.885,0.32,1.275)]"
-          style={{ transform: `translateX(${activeIndex * 100}%)` }}
-        />
-
-        {tabs.map((tab) => (
-          <button
-            key={tab.id}
-            onClick={() => onTabChange(tab.id as NavigationProps['activeTab'])}
-            className={`relative z-10 flex flex-col items-center justify-center w-full py-2.5 gap-1 transition-all duration-300 rounded-2xl interactive active:scale-90 ${activeTab === tab.id
-              ? 'text-emerald-600 dark:text-emerald-400 font-black'
-              : 'text-slate-400 dark:text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 font-bold'
+const Navigation: React.FC<NavigationProps> = ({ activeTab, onTabChange }) => (
+  <>
+    {/* ── Mobile: floating bottom bar ─────────────────────────────────────── */}
+    <div className="fixed bottom-0 inset-x-0 z-50 px-3 pb-3 pt-2 pointer-events-none lg:hidden safe-bottom">
+      <nav
+        aria-label="Primary"
+        className="mx-auto w-full max-w-md bg-white dark:bg-slate-900 border border-slate-200/70 dark:border-white/10 p-1.5 rounded-[2rem] flex justify-between items-center shadow-[0_10px_30px_rgba(0,0,0,0.08)] pointer-events-auto"
+      >
+        {TABS.map((tab) => {
+          const isActive = activeTab === tab.id;
+          return (
+            <button
+              key={tab.id}
+              type="button"
+              onClick={() => onTabChange(tab.id)}
+              aria-current={isActive ? 'page' : undefined}
+              className={`relative flex flex-col items-center justify-center w-full py-2 gap-1 rounded-2xl transition-colors duration-200 ${
+                isActive
+                  ? 'text-emerald-600 dark:text-emerald-400'
+                  : 'text-slate-400 dark:text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
               }`}
-          >
-            <i className={`fa-solid ${tab.icon} transition-all duration-500 ease-[cubic-bezier(0.175,0.885,0.32,1.275)] ${activeTab === tab.id ? 'scale-110 text-lg drop-shadow-[0_0_8px_rgba(16,185,129,0.3)]' : 'text-base'}`}></i>
-            <span className="text-[8px] uppercase tracking-[0.16em] font-black">{tab.label}</span>
-          </button>
-        ))}
+            >
+              <i className={`fa-solid ${tab.icon} ${isActive ? 'text-lg' : 'text-base'}`} aria-hidden="true" />
+              <span className="text-[0.5rem] uppercase tracking-[0.14em] font-black">{tab.label}</span>
+            </button>
+          );
+        })}
       </nav>
     </div>
-  );
-};
+
+    {/* ── Desktop: persistent sidebar ─────────────────────────────────────── */}
+    <aside className="hidden lg:flex fixed inset-y-0 left-0 w-72 flex-col justify-between border-r border-slate-200 dark:border-slate-800 bg-white/80 dark:bg-slate-950/70 backdrop-blur-xl px-5 py-7 z-40">
+      <div className="space-y-9">
+        <div className="flex items-center gap-3 px-2">
+          <div className="w-11 h-11 bg-emerald-500 rounded-2xl flex items-center justify-center text-white shadow-md shrink-0">
+            <i className="fa-solid fa-leaf text-lg" aria-hidden="true" />
+          </div>
+          <div className="min-w-0">
+            <h1 className="text-base font-black text-slate-800 dark:text-white tracking-tight leading-tight">
+              EcoPulse AI
+            </h1>
+            <p className="text-[0.5625rem] font-black text-slate-400 uppercase tracking-[0.16em]">
+              Sustainability
+            </p>
+          </div>
+        </div>
+
+        <nav aria-label="Primary" className="space-y-1">
+          {TABS.map((tab) => {
+            const isActive = activeTab === tab.id;
+            return (
+              <button
+                key={tab.id}
+                type="button"
+                onClick={() => onTabChange(tab.id)}
+                aria-current={isActive ? 'page' : undefined}
+                className={`w-full flex items-center gap-3.5 px-4 py-3 rounded-xl transition-colors duration-200 text-left ${
+                  isActive
+                    ? 'bg-emerald-500/10 dark:bg-emerald-500/15 text-emerald-600 dark:text-emerald-400'
+                    : 'text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800/60 hover:text-slate-800 dark:hover:text-slate-200'
+                }`}
+              >
+                <i className={`fa-solid ${tab.icon} text-base w-5 text-center`} aria-hidden="true" />
+                <span className="min-w-0">
+                  <span className="block text-sm font-bold leading-tight">{tab.label}</span>
+                  <span className="block text-[0.625rem] text-slate-400 dark:text-slate-500 font-medium leading-tight">
+                    {tab.hint}
+                  </span>
+                </span>
+              </button>
+            );
+          })}
+        </nav>
+      </div>
+
+      <p className="text-[0.625rem] text-slate-400 dark:text-slate-600 font-semibold px-2">
+        &copy; {new Date().getFullYear()} EcoPulse AI
+      </p>
+    </aside>
+  </>
+);
 
 export default Navigation;

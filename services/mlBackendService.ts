@@ -1,7 +1,12 @@
 import { Trip, UtilityBill } from './types';
 
 const ML_API_URL = import.meta.env.VITE_ML_API_URL || '/api';
-const ML_API_KEY = import.meta.env.VITE_ML_API_KEY || 'ecopulse_dev_key';
+
+// No default key. A literal baked in here would ship inside the JavaScript
+// bundle *and* be identical for every deployment, which is the same as having
+// no authentication at all. If the key is absent the client stays disabled.
+const ML_API_KEY = import.meta.env.VITE_ML_API_KEY || '';
+
 const ML_ENABLED = String(import.meta.env.VITE_ML_ENABLED || '').toLowerCase() === 'true';
 
 const buildUrl = (path: string) => {
@@ -10,7 +15,7 @@ const buildUrl = (path: string) => {
   return `${base}${cleanPath}`;
 };
 
-const isEnabled = () => Boolean(ML_API_URL) && ML_ENABLED;
+const isEnabled = () => Boolean(ML_API_URL) && Boolean(ML_API_KEY) && ML_ENABLED;
 
 const safeJson = async (response: Response) => {
   const text = await response.text();
