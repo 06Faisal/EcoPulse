@@ -185,6 +185,18 @@ const AIAdvisor: React.FC<AIAdvisorProps> = ({ insight, loading, userCity, mostU
   const isEliteEfficiency = (insight?.breakdown?.energy || 0) < 5;
   const hasInsight = Boolean(insight);
 
+  // Normalise the pattern block once, with a fallback for every field. Insights
+  // reach this component from three sources (localStorage cache, ML backend,
+  // Gemini) and only the locally computed one is guaranteed to be complete.
+  const patterns = insight?.patterns;
+  const carbonTrend = patterns?.carbonTrend ?? 'stable';
+  const topVehicle = patterns?.mostUsedVehicle || mostUsedVehicle || 'Not enough data';
+  const peakTravelDays = Array.isArray(patterns?.peakTravelDays) ? patterns.peakTravelDays : [];
+  const averageDailyDistance =
+    typeof patterns?.averageDailyDistance === 'number' && Number.isFinite(patterns.averageDailyDistance)
+      ? patterns.averageDailyDistance
+      : null;
+
   const savingsData = [
     { name: 'Current', value: current7DayForecast, color: '#94a3b8' },
     { name: 'Optimized', value: insight?.optimizedForecast || (current7DayForecast * 0.8), color: '#10b981' }
@@ -271,13 +283,20 @@ const AIAdvisor: React.FC<AIAdvisorProps> = ({ insight, loading, userCity, mostU
                 Behavioral Pattern Analysis
               </h3>
 
+              {/* Read each field defensively. An AIInsight can arrive from the
+                  7-day localStorage cache, the ML backend, or a Gemini JSON
+                  response, so `patterns` is not guaranteed to carry every key —
+                  an insight cached by an older build will not. The previous
+                  `insight!.patterns!.field` assertions silenced TypeScript
+                  without making any of that true at runtime, and a missing
+                  peakTravelDays threw, taking down the whole app. */}
               <div className="grid grid-cols-2 gap-4">
                 <div className="p-4 bg-slate-50 dark:bg-slate-800/50 rounded-2xl">
                   <div className="text-[0.6875rem] font-bold text-slate-400 uppercase mb-1">Carbon Trend</div>
                   <div className="flex items-center gap-2">
-                    <i className={`fa-solid ${insight!.patterns!.carbonTrend === 'decreasing' ? 'fa-arrow-down text-emerald-500' : insight!.patterns!.carbonTrend === 'increasing' ? 'fa-arrow-up text-rose-500' : 'fa-minus text-blue-500'}`} />
+                    <i className={`fa-solid ${carbonTrend === 'decreasing' ? 'fa-arrow-down text-emerald-500' : carbonTrend === 'increasing' ? 'fa-arrow-up text-rose-500' : 'fa-minus text-blue-500'}`} />
                     <span className="text-sm font-bold text-slate-800 dark:text-white capitalize">
-                      {insight!.patterns!.carbonTrend}
+                      {carbonTrend}
                     </span>
                   </div>
                 </div>
@@ -285,15 +304,17 @@ const AIAdvisor: React.FC<AIAdvisorProps> = ({ insight, loading, userCity, mostU
                 <div className="p-4 bg-slate-50 dark:bg-slate-800/50 rounded-2xl">
                   <div className="text-[0.6875rem] font-bold text-slate-400 uppercase mb-1">Avg Daily Distance</div>
                   <div className="text-sm font-bold text-slate-800 dark:text-white">
-                    {insight!.patterns!.averageDailyDistance.toFixed(1)} <span className="text-xs text-slate-400">km</span>
+                    {averageDailyDistance === null
+                      ? <span className="text-slate-400">Not enough data</span>
+                      : <>{averageDailyDistance.toFixed(1)} <span className="text-xs text-slate-400">km</span></>}
                   </div>
                 </div>
 
                 <div className="p-4 bg-slate-50 dark:bg-slate-800/50 rounded-2xl col-span-2">
                   <div className="text-[0.6875rem] font-bold text-slate-400 uppercase mb-2">Peak Travel Days</div>
                   <div className="flex gap-2 flex-wrap">
-                    {insight!.patterns!.peakTravelDays.length > 0
-                      ? insight!.patterns!.peakTravelDays.map(day => (
+                    {peakTravelDays.length > 0
+                      ? peakTravelDays.map(day => (
                         <span key={day} className="px-3 py-1 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-[0.625rem] font-bold rounded-lg uppercase tracking-[0.1em]">
                           {day}
                         </span>
@@ -308,7 +329,7 @@ const AIAdvisor: React.FC<AIAdvisorProps> = ({ insight, loading, userCity, mostU
                   <div className="flex items-center gap-2">
                     <i className="fa-solid fa-car text-emerald-500" />
                     <span className="text-sm font-bold text-slate-800 dark:text-white">
-                      {insight!.patterns!.mostUsedVehicle}
+                      {topVehicle}
                     </span>
                   </div>
                 </div>

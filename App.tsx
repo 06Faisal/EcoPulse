@@ -3,6 +3,7 @@ import Auth from './components/Auth';
 import Navigation, { type TabId } from './components/Navigation';
 import { ThemeToggle } from './components/ui/theme-toggle';
 import InstallPrompt from './components/InstallPrompt';
+import ErrorBoundary from './components/ErrorBoundary';
 
 // Lazy-load heavy tab components for code-splitting
 const Dashboard = React.lazy(() => import('./components/Dashboard'));
@@ -802,6 +803,10 @@ function App() {
 
           {/* Extra bottom padding on mobile clears the floating tab bar. */}
           <main id="main-content" className="pb-28 lg:pb-12">
+            {/* Per-tab boundary: a render error in one screen degrades to an
+                inline message instead of blanking the whole application, which
+                is what happened when AI Advisor hit an incomplete insight. */}
+            <ErrorBoundary section={TAB_TITLES[activeTab]} resetKey={activeTab}>
             <Suspense fallback={
               <div className="flex items-center justify-center py-20">
                 <div className="w-8 h-8 border-3 border-emerald-500 border-t-transparent rounded-full animate-spin" />
@@ -877,6 +882,7 @@ function App() {
                 />
               )}
             </Suspense>
+            </ErrorBoundary>
           </main>
         </div>
       </div>
