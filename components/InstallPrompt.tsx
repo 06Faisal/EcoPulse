@@ -56,7 +56,7 @@ const InstallPrompt: React.FC = () => {
                 </div>
 
                 <div className="relative flex-1 min-w-0">
-                    <div className="text-[0.6875rem] font-black text-white/80 uppercase tracking-[0.14em]">Install App</div>
+                    <div className="text-[0.6875rem] font-bold text-white/80 uppercase tracking-[0.08em]">Install App</div>
                     <div className="text-xs text-white font-semibold leading-tight">
                         Add EcoPulse to your home screen for quick access & offline use
                     </div>
@@ -65,7 +65,7 @@ const InstallPrompt: React.FC = () => {
                 <div className="relative flex items-center gap-2 flex-shrink-0">
                     <button
                         onClick={handleInstall}
-                        className="px-3 py-1.5 bg-white text-emerald-600 text-xs font-black rounded-xl shadow hover:scale-105 transition-transform"
+                        className="px-3 py-1.5 bg-white text-emerald-600 text-xs font-bold rounded-xl shadow hover:scale-105 transition-transform"
                     >
                         Install
                     </button>

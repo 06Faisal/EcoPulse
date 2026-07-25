@@ -39,7 +39,7 @@ const Navigation: React.FC<NavigationProps> = ({ activeTab, onTabChange }) => (
               }`}
             >
               <i className={`fa-solid ${tab.icon} ${isActive ? 'text-lg' : 'text-base'}`} aria-hidden="true" />
-              <span className="text-[0.5rem] uppercase tracking-[0.14em] font-black">{tab.label}</span>
+              <span className="text-[0.5rem] uppercase tracking-[0.08em] font-bold">{tab.label}</span>
             </button>
           );
         })}
@@ -54,10 +54,10 @@ const Navigation: React.FC<NavigationProps> = ({ activeTab, onTabChange }) => (
             <i className="fa-solid fa-leaf text-lg" aria-hidden="true" />
           </div>
           <div className="min-w-0">
-            <h1 className="text-base font-black text-slate-800 dark:text-white tracking-tight leading-tight">
+            <h1 className="text-base font-bold text-slate-800 dark:text-white tracking-tight leading-tight">
               EcoPulse AI
             </h1>
-            <p className="text-[0.5625rem] font-black text-slate-400 uppercase tracking-[0.16em]">
+            <p className="text-[0.5625rem] font-bold text-slate-400 uppercase tracking-[0.08em]">
               Sustainability
             </p>
           </div>

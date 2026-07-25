@@ -149,14 +149,14 @@ const Challenges: React.FC<ChallengesProps> = ({ userId, userCO2ThisWeek }) => {
                 <div className="w-16 h-16 bg-amber-500/10 rounded-[1.5rem] flex items-center justify-center mx-auto mb-4">
                     <i className="fa-solid fa-trophy text-amber-500 text-2xl" />
                 </div>
-                <h2 className="text-xl font-black text-slate-800 dark:text-white">Challenges</h2>
+                <h2 className="text-xl font-bold text-slate-800 dark:text-white">Challenges</h2>
                 <p className="text-sm text-slate-500 dark:text-slate-400 font-medium mt-1">
                     Compete, commit, and cut carbon with others
                 </p>
                 <div className="flex justify-center gap-4 mt-4">
                     <div className="text-center">
-                        <div className="text-2xl font-black text-slate-800 dark:text-white">{joined.length}</div>
-                        <div className="text-[0.625rem] text-slate-400 font-black uppercase tracking-widest">Active</div>
+                        <div className="text-2xl font-bold text-slate-800 dark:text-white">{joined.length}</div>
+                        <div className="text-[0.625rem] text-slate-400 font-bold uppercase tracking-[0.08em]">Active</div>
                     </div>
                 </div>
             </div>
@@ -164,7 +164,7 @@ const Challenges: React.FC<ChallengesProps> = ({ userId, userCO2ThisWeek }) => {
             {/* Active challenges */}
             {joined.length > 0 && (
                 <div className="space-y-3">
-                    <h3 className="text-[0.6875rem] font-black text-slate-400 uppercase tracking-[0.16em] px-1 flex items-center gap-2">
+                    <h3 className="text-[0.6875rem] font-bold text-slate-400 uppercase tracking-[0.08em] px-1 flex items-center gap-2">
                         <i className="fa-solid fa-fire text-amber-500" /> Your Active Challenges
                     </h3>
                     {joined.map(c => {
@@ -180,15 +180,15 @@ const Challenges: React.FC<ChallengesProps> = ({ userId, userCO2ThisWeek }) => {
                                     </div>
                                     <div className="flex-1 min-w-0">
                                         <div className="flex items-center justify-between gap-2 flex-wrap">
-                                            <h4 className="font-black text-slate-800 dark:text-white text-sm">{c.title}</h4>
-                                            <span className="text-[0.625rem] font-black text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full">
+                                            <h4 className="font-bold text-slate-800 dark:text-white text-sm">{c.title}</h4>
+                                            <span className="text-[0.625rem] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full">
                                                 {daysLeft(c.endsAt)}d left
                                             </span>
                                         </div>
                                         <p className="text-[0.6875rem] text-slate-500 dark:text-slate-400 font-medium mt-1 leading-tight">{c.description}</p>
                                         {c.type === 'low_carbon_day' && (
                                             <div className="mt-3">
-                                                <div className="flex justify-between text-[0.625rem] font-black text-slate-400 mb-1">
+                                                <div className="flex justify-between text-[0.625rem] font-bold text-slate-400 mb-1">
                                                     <span>{(c.userProgress || 0).toFixed(1)} kg used</span>
                                                     <span>{c.goalValue} kg limit</span>
                                                 </div>
@@ -202,7 +202,7 @@ const Challenges: React.FC<ChallengesProps> = ({ userId, userCO2ThisWeek }) => {
                                         )}
                                         <button
                                             onClick={() => handleJoin(c.id)}
-                                            className="mt-3 text-[0.625rem] font-black text-rose-500 hover:text-rose-400 uppercase tracking-widest transition-colors"
+                                            className="mt-3 text-[0.625rem] font-bold text-rose-500 hover:text-rose-400 uppercase tracking-[0.08em] transition-colors"
                                         >
                                             Leave challenge
                                         </button>
@@ -216,7 +216,7 @@ const Challenges: React.FC<ChallengesProps> = ({ userId, userCO2ThisWeek }) => {
 
             {/* Available challenges */}
             <div className="space-y-3">
-                <h3 className="text-[0.6875rem] font-black text-slate-400 uppercase tracking-[0.16em] px-1">
+                <h3 className="text-[0.6875rem] font-bold text-slate-400 uppercase tracking-[0.08em] px-1">
                     Available Challenges
                 </h3>
                 {available.map(c => {
@@ -229,19 +229,19 @@ const Challenges: React.FC<ChallengesProps> = ({ userId, userCO2ThisWeek }) => {
                                 </div>
                                 <div className="flex-1 min-w-0">
                                     <div className="flex items-center justify-between gap-2 flex-wrap">
-                                        <h4 className="font-black text-slate-800 dark:text-white text-sm">{c.title}</h4>
+                                        <h4 className="font-bold text-slate-800 dark:text-white text-sm">{c.title}</h4>
                                         <span className="text-[0.625rem] font-bold text-slate-400">
                                             👥 {c.participantCount?.toLocaleString()} joined
                                         </span>
                                     </div>
                                     <p className="text-[0.6875rem] text-slate-500 dark:text-slate-400 font-medium mt-1 leading-tight">{c.description}</p>
                                     <div className="flex items-center justify-between mt-3 flex-wrap gap-2">
-                                        <span className="text-[0.625rem] text-slate-400 font-black">
+                                        <span className="text-[0.625rem] text-slate-400 font-bold">
                                             ⏱ {daysLeft(c.endsAt)} days left
                                         </span>
                                         <button
                                             onClick={() => handleJoin(c.id)}
-                                            className="px-4 py-1.5 bg-emerald-500 hover:bg-emerald-400 text-white text-xs font-black rounded-xl transition-colors shadow shadow-emerald-500/25"
+                                            className="px-4 py-1.5 bg-emerald-500 hover:bg-emerald-400 text-white text-xs font-bold rounded-xl transition-colors shadow shadow-emerald-500/25"
                                         >
                                             Join Challenge
                                         </button>
@@ -263,7 +263,7 @@ const Challenges: React.FC<ChallengesProps> = ({ userId, userCO2ThisWeek }) => {
                         <div className="w-10 h-10 rounded-xl bg-purple-500/10 flex items-center justify-center">
                             <i className="fa-solid fa-plus text-purple-500 text-sm" />
                         </div>
-                        <span className="font-black text-slate-700 dark:text-slate-200 text-sm">Create Custom Challenge</span>
+                        <span className="font-bold text-slate-700 dark:text-slate-200 text-sm">Create Custom Challenge</span>
                     </div>
                     <i className={`fa-solid fa-chevron-${showCreate ? 'up' : 'down'} text-slate-400 text-xs`} />
                 </button>
@@ -279,7 +279,7 @@ const Challenges: React.FC<ChallengesProps> = ({ userId, userCO2ThisWeek }) => {
                         />
                         <div className="grid grid-cols-2 gap-3">
                             <div>
-                                <label className="text-[0.625rem] font-black text-slate-400 uppercase tracking-widest mb-1 block">CO₂ Limit (kg)</label>
+                                <label className="text-[0.625rem] font-bold text-slate-400 uppercase tracking-[0.08em] mb-1 block">CO₂ Limit (kg)</label>
                                 <input
                                     type="number"
                                     placeholder="e.g. 5"
@@ -289,7 +289,7 @@ const Challenges: React.FC<ChallengesProps> = ({ userId, userCO2ThisWeek }) => {
                                 />
                             </div>
                             <div>
-                                <label className="text-[0.625rem] font-black text-slate-400 uppercase tracking-widest mb-1 block">Duration (days)</label>
+                                <label className="text-[0.625rem] font-bold text-slate-400 uppercase tracking-[0.08em] mb-1 block">Duration (days)</label>
                                 <input
                                     type="number"
                                     placeholder="7"
@@ -302,7 +302,7 @@ const Challenges: React.FC<ChallengesProps> = ({ userId, userCO2ThisWeek }) => {
                         <button
                             onClick={handleCreate}
                             disabled={!newTitle.trim() || !newGoal}
-                            className="w-full py-3 bg-purple-500 hover:bg-purple-400 disabled:opacity-40 text-white font-black text-sm rounded-xl transition-colors"
+                            className="w-full py-3 bg-purple-500 hover:bg-purple-400 disabled:opacity-40 text-white font-bold text-sm rounded-xl transition-colors"
                         >
                             Create Challenge
                         </button>

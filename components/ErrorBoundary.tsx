@@ -28,7 +28,7 @@ class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundarySta
                         <div className="w-16 h-16 bg-rose-500/10 rounded-3xl flex items-center justify-center text-rose-500 text-3xl mx-auto mb-6">
                             <i className="fa-solid fa-triangle-exclamation" />
                         </div>
-                        <h1 className="text-2xl font-black text-slate-800 dark:text-white mb-2">
+                        <h1 className="text-2xl font-bold text-slate-800 dark:text-white mb-2">
                             Something went wrong
                         </h1>
                         <p className="text-sm text-slate-500 dark:text-slate-400 mb-6 leading-relaxed">
@@ -41,7 +41,7 @@ class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundarySta
                         )}
                         <button
                             onClick={() => window.location.reload()}
-                            className="w-full bg-emerald-500 hover:bg-emerald-400 text-white py-4 px-5 rounded-2xl font-black uppercase tracking-[0.18em] shadow-xl transition-colors"
+                            className="w-full bg-emerald-500 hover:bg-emerald-400 text-white py-4 px-5 rounded-2xl font-bold uppercase tracking-[0.08em] shadow-xl transition-colors"
                         >
                             Reload App
                         </button>

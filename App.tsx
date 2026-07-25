@@ -772,10 +772,10 @@ function App() {
                 <i className="fa-solid fa-leaf text-lg" aria-hidden="true" />
               </div>
               <div className="min-w-0">
-                <h2 className="text-base font-black text-slate-800 dark:text-white capitalize leading-tight truncate">
+                <h2 className="text-base font-bold text-slate-800 dark:text-white capitalize leading-tight truncate">
                   {TAB_TITLES[activeTab]}
                 </h2>
-                <p className="text-[0.5625rem] font-black text-slate-400 uppercase tracking-[0.16em] truncate">
+                <p className="text-[0.5625rem] font-bold text-slate-400 uppercase tracking-[0.08em] truncate">
                   {TAB_SUBTITLES[activeTab]}
                 </p>
               </div>

@@ -62,13 +62,13 @@ const CarbonOffset: React.FC<CarbonOffsetProps> = ({ trips, bills }) => {
                         <i className="fa-solid fa-earth-americas text-lg" />
                     </div>
                     <div>
-                        <h3 className="text-sm font-black text-slate-800 dark:text-white">Carbon Offsets</h3>
+                        <h3 className="text-sm font-bold text-slate-800 dark:text-white">Carbon Offsets</h3>
                         <p className="text-[0.6875rem] text-slate-400 font-bold uppercase tracking-[0.1em]">Neutralise your footprint</p>
                     </div>
                 </div>
                 <button
                     onClick={() => setExpanded(e => !e)}
-                    className="text-[0.625rem] font-black text-emerald-500 uppercase tracking-widest flex items-center gap-1 hover:text-emerald-400 transition-colors"
+                    className="text-[0.625rem] font-bold text-emerald-500 uppercase tracking-[0.08em] flex items-center gap-1 hover:text-emerald-400 transition-colors"
                 >
                     {expanded ? 'Close' : 'Explore'}
                     <i className={`fa-solid fa-chevron-${expanded ? 'up' : 'down'} text-[0.5625rem]`} />
@@ -79,10 +79,10 @@ const CarbonOffset: React.FC<CarbonOffsetProps> = ({ trips, bills }) => {
             <div className="p-4 bg-gradient-to-r from-emerald-500/10 to-teal-500/10 rounded-2xl border border-emerald-500/20 mb-4">
                 <div className="flex items-center justify-between">
                     <div>
-                        <div className="text-[0.6875rem] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-[0.12em] mb-1">
+                        <div className="text-[0.6875rem] font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-[0.08em] mb-1">
                             This month's footprint
                         </div>
-                        <div className="text-2xl font-black text-slate-800 dark:text-white">
+                        <div className="text-2xl font-bold text-slate-800 dark:text-white">
                             {totalCO2.toFixed(1)} <span className="text-sm text-slate-400 font-bold">kg CO₂</span>
                         </div>
                         <div className="text-xs text-slate-500 dark:text-slate-400 mt-1">
@@ -90,8 +90,8 @@ const CarbonOffset: React.FC<CarbonOffsetProps> = ({ trips, bills }) => {
                         </div>
                     </div>
                     <div className="text-right">
-                        <div className="text-[0.6875rem] font-black text-slate-400 uppercase mb-1">Est. offset cost</div>
-                        <div className="text-xl font-black text-slate-700 dark:text-slate-200">
+                        <div className="text-[0.6875rem] font-bold text-slate-400 uppercase mb-1">Est. offset cost</div>
+                        <div className="text-xl font-bold text-slate-700 dark:text-slate-200">
                             ₹{Math.ceil(totalCO2 * 1.5)}
                             <span className="text-xs text-slate-400 font-medium ml-1">– ₹{Math.ceil(totalCO2 * 2.1)}</span>
                         </div>
@@ -102,7 +102,7 @@ const CarbonOffset: React.FC<CarbonOffsetProps> = ({ trips, bills }) => {
             {/* Offset providers */}
             {expanded && (
                 <div className="space-y-3 animate-in fade-in slide-in-from-bottom-2 duration-300">
-                    <p className="text-[0.6875rem] font-black text-slate-400 uppercase tracking-[0.14em] px-1">
+                    <p className="text-[0.6875rem] font-bold text-slate-400 uppercase tracking-[0.08em] px-1">
                         Verified Offset Providers
                     </p>
                     <div className="grid gap-3 md:grid-cols-2">
@@ -119,7 +119,7 @@ const CarbonOffset: React.FC<CarbonOffsetProps> = ({ trips, bills }) => {
                             </div>
                             <div className="flex-1 min-w-0">
                                 <div className="flex items-center gap-2 flex-wrap">
-                                    <span className="font-black text-slate-800 dark:text-white text-xs">{p.name}</span>
+                                    <span className="font-bold text-slate-800 dark:text-white text-xs">{p.name}</span>
                                     <span className="text-[0.625rem] bg-slate-200 dark:bg-slate-700 text-slate-500 dark:text-slate-300 px-2 py-0.5 rounded-full">{p.badge}</span>
                                 </div>
                                 <p className="text-[0.6875rem] text-slate-500 dark:text-slate-300 font-medium leading-tight mt-0.5">
@@ -127,7 +127,7 @@ const CarbonOffset: React.FC<CarbonOffsetProps> = ({ trips, bills }) => {
                                 </p>
                             </div>
                             <div className="flex-shrink-0 text-right">
-                                <div className="text-xs font-black text-emerald-600 dark:text-emerald-400">
+                                <div className="text-xs font-bold text-emerald-600 dark:text-emerald-400">
                                     ₹{p.pricePerKg.toFixed(1)}/kg
                                 </div>
                                 <div className="text-[0.625rem] text-slate-400">

@@ -1,66 +1,114 @@
-// EcoPulse Service Worker — caches app shell for offline use
-const CACHE_NAME = 'ecopulse-v2';
-const SHELL = [
-    '/',
-    '/index.html',
-    '/favicon.svg',
-];
+// EcoPulse Service Worker — offline support without pinning users to a stale build.
+//
+// The previous version answered every request cache-first from a cache whose
+// name never changed between deploys. index.html was therefore served from the
+// first visit forever, and because it referenced content-hashed asset
+// filenames that were themselves cached, a returning visitor could never
+// receive a new release. Hence: new deploys appeared on a fresh origin but not
+// on the one the browser had already registered a worker for.
+//
+// Strategy now:
+//   • navigations / HTML → network-first (cache only as an offline fallback)
+//   • content-hashed build assets → cache-first (the hash makes them immutable)
+//   • everything else same-origin → stale-while-revalidate
+
+const VERSION = 'v3';
+const SHELL_CACHE = `ecopulse-shell-${VERSION}`;
+const ASSET_CACHE = `ecopulse-assets-${VERSION}`;
+const CURRENT_CACHES = [SHELL_CACHE, ASSET_CACHE];
+
+const OFFLINE_FALLBACK = '/index.html';
 
 self.addEventListener('install', (event) => {
     event.waitUntil(
-        caches.open(CACHE_NAME).then((cache) => cache.addAll(SHELL))
+        caches.open(SHELL_CACHE).then((cache) => cache.addAll(['/', OFFLINE_FALLBACK, '/favicon.svg']))
     );
     self.skipWaiting();
 });
 
 self.addEventListener('activate', (event) => {
     event.waitUntil(
-        caches.keys().then((keys) =>
-            Promise.all(keys.filter((k) => k !== CACHE_NAME).map((k) => caches.delete(k)))
-        )
+        caches
+            .keys()
+            .then((keys) =>
+                Promise.all(keys.filter((k) => !CURRENT_CACHES.includes(k)).map((k) => caches.delete(k)))
+            )
+            .then(() => self.clients.claim())
     );
-    self.clients.claim();
 });
 
+// Vite emits hashed filenames under /assets/, e.g. index-B3ouHUU9.js. Those are
+// safe to serve from cache indefinitely because a rebuild changes the name.
+const isHashedAsset = (url) => url.pathname.startsWith('/assets/');
+
 self.addEventListener('fetch', (event) => {
-    // Only handle GET requests
-    if (event.request.method !== 'GET') return;
+    const { request } = event;
 
-    const url = new URL(event.request.url);
+    if (request.method !== 'GET') return;
 
-    // Skip cross-origin requests (Supabase, Gemini API, fonts, etc.)
+    const url = new URL(request.url);
+
+    // Leave cross-origin traffic (Supabase, Gemini, fonts, CDN) alone.
     if (url.origin !== self.location.origin) return;
-    // Skip Vite HMR in dev
+    // Never intercept Vite's dev-server plumbing.
     if (url.pathname.includes('/@') || url.pathname.includes('/node_modules/')) return;
 
-    event.respondWith(
-        caches.match(event.request).then((cached) => {
-            if (cached) return cached;
-            return fetch(event.request).then((response) => {
-                // Cache HTML, static assets, and build output (JS/CSS)
-                if (response.ok && (
-                    url.pathname.endsWith('.html') ||
-                    url.pathname.endsWith('.svg') ||
-                    url.pathname.endsWith('.png') ||
-                    url.pathname.endsWith('.js') ||
-                    url.pathname.endsWith('.css') ||
-                    url.pathname === '/'
-                )) {
+    // ── Navigations: always try the network first so a deploy is picked up on
+    // the next load. Fall back to the cached shell only when actually offline.
+    if (request.mode === 'navigate') {
+        event.respondWith(
+            fetch(request)
+                .then((response) => {
                     const clone = response.clone();
-                    caches.open(CACHE_NAME).then((c) => c.put(event.request, clone));
-                }
-                return response;
-            }).catch(() => {
-                // Fallback to index.html for navigation requests
-                if (event.request.mode === 'navigate') {
-                    return caches.match('/index.html');
-                }
-            });
+                    caches.open(SHELL_CACHE).then((cache) => cache.put(OFFLINE_FALLBACK, clone));
+                    return response;
+                })
+                .catch(() => caches.match(OFFLINE_FALLBACK).then((cached) => cached || Response.error()))
+        );
+        return;
+    }
+
+    // ── Immutable hashed assets: cache-first is correct and fast.
+    if (isHashedAsset(url)) {
+        event.respondWith(
+            caches.match(request).then(
+                (cached) =>
+                    cached ||
+                    fetch(request).then((response) => {
+                        if (response.ok) {
+                            const clone = response.clone();
+                            caches.open(ASSET_CACHE).then((cache) => cache.put(request, clone));
+                        }
+                        return response;
+                    })
+            )
+        );
+        return;
+    }
+
+    // ── Everything else same-origin: serve cache for speed, refresh in the
+    // background so the next load is current.
+    event.respondWith(
+        caches.match(request).then((cached) => {
+            const network = fetch(request)
+                .then((response) => {
+                    if (response.ok) {
+                        const clone = response.clone();
+                        caches.open(SHELL_CACHE).then((cache) => cache.put(request, clone));
+                    }
+                    return response;
+                })
+                .catch(() => cached);
+            return cached || network;
         })
     );
 });
 
-// Show notification from service worker (called by frontend)
+// Lets the page tell a waiting worker to take over immediately.
+self.addEventListener('message', (event) => {
+    if (event.data === 'SKIP_WAITING') self.skipWaiting();
+});
+
 self.addEventListener('notificationclick', (event) => {
     event.notification.close();
     event.waitUntil(

@@ -149,7 +149,7 @@ const Toast: React.FC<{ message: string; onDismiss: () => void }> = ({ message, 
 
   return (
     <div className="fixed top-4 left-1/2 -translate-x-1/2 z-[100] animate-in slide-in-from-top-4 duration-300">
-      <div className="bg-slate-900 dark:bg-emerald-500 text-white px-6 py-3 rounded-2xl shadow-2xl flex items-center gap-3 text-sm font-black">
+      <div className="bg-slate-900 dark:bg-emerald-500 text-white px-6 py-3 rounded-2xl shadow-2xl flex items-center gap-3 text-sm font-bold">
         <i className="fa-solid fa-trophy text-amber-400 dark:text-white text-lg" />
         <span>{message}</span>
       </div>
@@ -290,12 +290,12 @@ const Profile: React.FC<ProfileProps> = ({ user, trips, bills = [], onUpdateProf
             <div className="absolute inset-0 bg-emerald-500/20 rounded-card blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
             <i className={`fa-solid ${user.avatarId} relative z-10`} />
           </div>
-          <h2 className="text-2xl font-black text-slate-800 dark:text-white relative z-10">{user.name}</h2>
+          <h2 className="text-2xl font-bold text-slate-800 dark:text-white relative z-10">{user.name}</h2>
           <div className="flex justify-center gap-2 mt-2">
-            <span className="px-3 py-1 bg-emerald-500 text-white text-[0.625rem] font-black rounded-full uppercase tracking-widest">{user.level}</span>
-            <span className="px-3 py-1 bg-slate-900 dark:bg-slate-800 text-white text-[0.625rem] font-black rounded-full uppercase tracking-widest">Rank #{user.rank}</span>
+            <span className="px-3 py-1 bg-emerald-500 text-white text-[0.625rem] font-bold rounded-full uppercase tracking-[0.08em]">{user.level}</span>
+            <span className="px-3 py-1 bg-slate-900 dark:bg-slate-800 text-white text-[0.625rem] font-bold rounded-full uppercase tracking-[0.08em]">Rank #{user.rank}</span>
             {user.streak > 0 && (
-              <span className="px-3 py-1 bg-amber-500 text-white text-[0.625rem] font-black rounded-full uppercase tracking-widest flex items-center gap-1">
+              <span className="px-3 py-1 bg-amber-500 text-white text-[0.625rem] font-bold rounded-full uppercase tracking-[0.08em] flex items-center gap-1">
                 <i className="fa-solid fa-fire-flame-curved" /> {user.streak}d
               </span>
             )}
@@ -304,10 +304,10 @@ const Profile: React.FC<ProfileProps> = ({ user, trips, bills = [], onUpdateProf
           {/* Daily Goal Editor */}
           <div className="mt-8 p-5 bg-slate-50 dark:bg-slate-800/50 rounded-2xl text-left border border-slate-200 dark:border-slate-700/50">
             <div className="flex items-center justify-between mb-2">
-              <span className="text-[0.6875rem] font-black text-slate-400 uppercase tracking-[0.16em]">Daily CO₂ Goal</span>
+              <span className="text-[0.6875rem] font-bold text-slate-400 uppercase tracking-[0.08em]">Daily CO₂ Goal</span>
               <button
                 onClick={() => { setEditingGoal(!editingGoal); setGoalInput(String(user.dailyGoal)); }}
-                className="text-[0.625rem] font-black text-emerald-500 hover:text-emerald-600 dark:hover:text-emerald-400 uppercase tracking-widest transition-colors"
+                className="text-[0.625rem] font-bold text-emerald-500 hover:text-emerald-600 dark:hover:text-emerald-400 uppercase tracking-[0.08em] transition-colors"
               >
                 {editingGoal ? 'Cancel' : 'Edit'}
               </button>
@@ -326,13 +326,13 @@ const Profile: React.FC<ProfileProps> = ({ user, trips, bills = [], onUpdateProf
                 <span className="text-xs text-slate-400 font-bold">kg</span>
                 <button
                   onClick={handleSaveGoal}
-                  className="px-4 py-2 bg-emerald-500 hover:bg-emerald-400 active:scale-95 text-white text-[0.625rem] font-black uppercase tracking-widest rounded-xl transition-all shadow-md shadow-emerald-500/20"
+                  className="px-4 py-2 bg-emerald-500 hover:bg-emerald-400 active:scale-95 text-white text-[0.625rem] font-bold uppercase tracking-[0.08em] rounded-xl transition-all shadow-md shadow-emerald-500/20"
                 >
                   Save
                 </button>
               </div>
             ) : (
-              <div className="text-xl font-black text-slate-800 dark:text-white">
+              <div className="text-xl font-bold text-slate-800 dark:text-white">
                 {user.dailyGoal} <span className="text-xs font-bold text-slate-400">kg CO₂/day</span>
               </div>
             )}
@@ -341,10 +341,10 @@ const Profile: React.FC<ProfileProps> = ({ user, trips, bills = [], onUpdateProf
           {/* Weekly Goal Editor */}
           <div className="mt-3 p-5 bg-slate-50 dark:bg-slate-800/50 rounded-2xl text-left border border-slate-200 dark:border-slate-700/50">
             <div className="flex items-center justify-between mb-2">
-              <span className="text-[0.6875rem] font-black text-slate-400 uppercase tracking-[0.16em]">Weekly CO₂ Goal</span>
+              <span className="text-[0.6875rem] font-bold text-slate-400 uppercase tracking-[0.08em]">Weekly CO₂ Goal</span>
               <button
                 onClick={() => { setEditingWeeklyGoal(!editingWeeklyGoal); setWeeklyGoalInput(String(user.weeklyGoal ?? 50)); }}
-                className="text-[0.625rem] font-black text-emerald-500 hover:text-emerald-600 dark:hover:text-emerald-400 uppercase tracking-widest transition-colors"
+                className="text-[0.625rem] font-bold text-emerald-500 hover:text-emerald-600 dark:hover:text-emerald-400 uppercase tracking-[0.08em] transition-colors"
               >
                 {editingWeeklyGoal ? 'Cancel' : 'Edit'}
               </button>
@@ -361,10 +361,10 @@ const Profile: React.FC<ProfileProps> = ({ user, trips, bills = [], onUpdateProf
                   step="5"
                 />
                 <span className="text-xs text-slate-400 font-bold">kg/week</span>
-                <button onClick={handleSaveWeeklyGoal} className="px-4 py-2 bg-emerald-500 hover:bg-emerald-400 active:scale-95 text-white text-[0.625rem] font-black uppercase tracking-widest rounded-xl transition-all shadow-md shadow-emerald-500/20">Save</button>
+                <button onClick={handleSaveWeeklyGoal} className="px-4 py-2 bg-emerald-500 hover:bg-emerald-400 active:scale-95 text-white text-[0.625rem] font-bold uppercase tracking-[0.08em] rounded-xl transition-all shadow-md shadow-emerald-500/20">Save</button>
               </div>
             ) : (
-              <div className="text-xl font-black text-slate-800 dark:text-white">
+              <div className="text-xl font-bold text-slate-800 dark:text-white">
                 {user.weeklyGoal ?? 50} <span className="text-xs font-bold text-slate-400">kg CO₂/week</span>
               </div>
             )}
@@ -381,7 +381,7 @@ const Profile: React.FC<ProfileProps> = ({ user, trips, bills = [], onUpdateProf
             >
               <i className={`fa-solid fa-bell text-xl ${user.notificationsEnabled && notifPermission === 'granted' ? 'text-emerald-500' : 'text-slate-400'
                 }`} />
-              <span className="text-[0.625rem] font-black text-slate-600 dark:text-slate-300 uppercase tracking-widest text-center leading-tight">
+              <span className="text-[0.625rem] font-bold text-slate-600 dark:text-slate-300 uppercase tracking-[0.08em] text-center leading-tight">
                 {user.notificationsEnabled && notifPermission === 'granted' ? 'Reminders On' : 'Enable Reminders'}
               </span>
             </button>
@@ -390,7 +390,7 @@ const Profile: React.FC<ProfileProps> = ({ user, trips, bills = [], onUpdateProf
               className="flex flex-col items-center justify-center gap-2 p-4 bg-gradient-to-br from-indigo-500/10 to-purple-500/10 border border-indigo-500/20 rounded-2xl hover:from-indigo-500/20 hover:to-purple-500/20 transition-all"
             >
               <i className="fa-solid fa-chart-bar text-xl text-indigo-500" />
-              <span className="text-[0.625rem] font-black text-slate-600 dark:text-slate-300 uppercase tracking-widest text-center leading-tight">Monthly Report</span>
+              <span className="text-[0.625rem] font-bold text-slate-600 dark:text-slate-300 uppercase tracking-[0.08em] text-center leading-tight">Monthly Report</span>
             </button>
           </div>
         </div>
@@ -398,7 +398,7 @@ const Profile: React.FC<ProfileProps> = ({ user, trips, bills = [], onUpdateProf
         {/* 30-Day Activity Heatmap */}
         <div className="xl:col-span-2 glass p-6 rounded-card-lg border border-white/10 animate-fade-in-up opacity-0" style={{ animationDelay: '100ms' }}>
           <div className="flex items-center justify-between mb-4">
-            <h3 className="text-[0.6875rem] font-black text-slate-400 uppercase tracking-[0.16em]">
+            <h3 className="text-[0.6875rem] font-bold text-slate-400 uppercase tracking-[0.08em]">
               <i className="fa-solid fa-calendar-days mr-2" />30-Day Activity
             </h3>
             <div className="flex items-center gap-2">
@@ -429,8 +429,8 @@ const Profile: React.FC<ProfileProps> = ({ user, trips, bills = [], onUpdateProf
         {resolvedMilestones.length > 0 && (
           <div className="space-y-4 animate-fade-in-up opacity-0" style={{ animationDelay: '200ms' }}>
             <div className="flex justify-between items-center ml-1">
-              <h3 className="text-[0.6875rem] font-black text-slate-400 uppercase tracking-[0.16em]">Achievements</h3>
-              <span className="text-[0.625rem] font-bold text-emerald-500 uppercase tracking-[0.12em]">
+              <h3 className="text-[0.6875rem] font-bold text-slate-400 uppercase tracking-[0.08em]">Achievements</h3>
+              <span className="text-[0.625rem] font-bold text-emerald-500 uppercase tracking-[0.08em]">
                 {resolvedMilestones.filter(m => m.unlockedTierIndex >= 0).length}/{resolvedMilestones.length} Unlocked
               </span>
             </div>
@@ -458,9 +458,9 @@ const Profile: React.FC<ProfileProps> = ({ user, trips, bills = [], onUpdateProf
                         </div>
                         <div className="pr-4">
                           <div className="flex items-center gap-2 mb-1">
-                            <h4 className="font-black text-slate-800 dark:text-white text-sm">{m.title}</h4>
+                            <h4 className="font-bold text-slate-800 dark:text-white text-sm">{m.title}</h4>
                             {currentTierLabel && (
-                              <span className="px-2 py-0.5 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-[0.625rem] font-black rounded-full uppercase">
+                              <span className="px-2 py-0.5 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-[0.625rem] font-bold rounded-full uppercase">
                                 {currentTierLabel}
                               </span>
                             )}
@@ -486,8 +486,8 @@ const Profile: React.FC<ProfileProps> = ({ user, trips, bills = [], onUpdateProf
                     {/* Progress bar */}
                     <div className="space-y-1.5">
                       <div className="flex justify-between items-center px-0.5">
-                        <span className="text-[0.625rem] font-black text-slate-400 uppercase">{m.unit} Progress</span>
-                        <span className="text-xs font-black text-slate-800 dark:text-white">
+                        <span className="text-[0.625rem] font-bold text-slate-400 uppercase">{m.unit} Progress</span>
+                        <span className="text-xs font-bold text-slate-800 dark:text-white">
                           {m.currentValue.toLocaleString()} <span className="text-slate-400">/ {m.nextMilestone.toLocaleString()}</span>
                         </span>
                       </div>
@@ -508,7 +508,7 @@ const Profile: React.FC<ProfileProps> = ({ user, trips, bills = [], onUpdateProf
         {/* Leaderboard */}
         {resolvedRankings.length > 0 && (
           <div className="space-y-4 animate-fade-in-up opacity-0" style={{ animationDelay: '300ms' }}>
-            <h3 className="text-[0.6875rem] font-black text-slate-400 uppercase tracking-[0.16em] ml-1">
+            <h3 className="text-[0.6875rem] font-bold text-slate-400 uppercase tracking-[0.08em] ml-1">
               {rankings && rankings.length > 0 ? 'Global Leaderboard' : 'Your Rank'}
             </h3>
             <div className="glass rounded-card-lg overflow-hidden border-white/5 shadow-lg">
@@ -534,7 +534,7 @@ const Profile: React.FC<ProfileProps> = ({ user, trips, bills = [], onUpdateProf
                         className={`flex items-center justify-between p-5 border-b border-slate-50 dark:border-slate-800/50 last:border-none ${r.isUser ? 'bg-emerald-500/10' : 'bg-transparent'}`}
                       >
                         <div className="flex items-center gap-4">
-                          <span className="text-[0.625rem] font-black w-8 text-center">
+                          <span className="text-[0.625rem] font-bold w-8 text-center">
                             {r.rank === 1 ? '🥇' : r.rank === 2 ? '🥈' : r.rank === 3 ? '🥉' : (
                               <span className={r.rank <= 3 ? 'text-amber-500' : 'text-slate-400'}>#{r.rank}</span>
                             )}
@@ -542,11 +542,11 @@ const Profile: React.FC<ProfileProps> = ({ user, trips, bills = [], onUpdateProf
                           <div className="w-10 h-10 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-500 dark:text-slate-400 border border-white/10 shadow-inner">
                             <i className={`fa-solid ${r.avatar}`} />
                           </div>
-                          <span className={`text-sm tracking-tight ${r.isUser ? 'font-black text-slate-800 dark:text-white' : 'font-bold text-slate-600 dark:text-slate-300'}`}>
+                          <span className={`text-sm tracking-tight ${r.isUser ? 'font-bold text-slate-800 dark:text-white' : 'font-bold text-slate-600 dark:text-slate-300'}`}>
                             {r.name}
                           </span>
                         </div>
-                        <span className="text-[0.625rem] font-black text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-3 py-1.5 rounded-xl">
+                        <span className="text-[0.625rem] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-3 py-1.5 rounded-xl">
                           {r.points.toLocaleString()} pts
                         </span>
                       </div>
@@ -563,17 +563,17 @@ const Profile: React.FC<ProfileProps> = ({ user, trips, bills = [], onUpdateProf
                         className="flex items-center justify-between p-5 bg-emerald-500/10"
                       >
                         <div className="flex items-center gap-4">
-                          <span className="text-[0.625rem] font-black w-8 text-center text-slate-400">
+                          <span className="text-[0.625rem] font-bold w-8 text-center text-slate-400">
                             #{userEntry.rank}
                           </span>
                           <div className="w-10 h-10 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-500 dark:text-slate-400 border border-white/10 shadow-inner">
                             <i className={`fa-solid ${userEntry.avatar}`} />
                           </div>
-                          <span className="text-sm tracking-tight font-black text-slate-800 dark:text-white">
+                          <span className="text-sm tracking-tight font-bold text-slate-800 dark:text-white">
                             {userEntry.name}
                           </span>
                         </div>
-                        <span className="text-[0.625rem] font-black text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-3 py-1.5 rounded-xl">
+                        <span className="text-[0.625rem] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-3 py-1.5 rounded-xl">
                           {userEntry.points.toLocaleString()} pts
                         </span>
                       </div>

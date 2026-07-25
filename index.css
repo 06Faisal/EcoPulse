@@ -2,17 +2,30 @@
 @tailwind components;
 @tailwind utilities;
 
-/* EcoPulse AI - Premium UI Styles */
+/* EcoPulse AI — design system
+ *
+ * Direction: an instrument, not a lifestyle app. A carbon figure is a meter
+ * reading, so the interface borrows from measurement instruments and utility
+ * ledgers rather than from wellness marketing.
+ *
+ * The signature: prose is set in a humanist sans, but every *measured
+ * quantity* is set in a monospace with tabular figures. Numbers therefore
+ * align into columns down the page and stop jittering as they animate. That
+ * one split carries the identity — everything else stays quiet.
+ */
 
 :root {
-  --accent-glow: 24, 90, 140;
   --spring: cubic-bezier(0.175, 0.885, 0.32, 1.275);
   --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
 
-  /* Card geometry. Generous on touch devices, tighter on desktop where huge
+  /* Card geometry. Softer on touch devices, crisper on desktop where large
      pill radii read as a phone UI blown up rather than a web app. */
-  --radius-card: 1.75rem;
-  --radius-card-lg: 2.25rem;
+  --radius-card: 1.25rem;
+  --radius-card-lg: 1.5rem;
+
+  /* Type roles */
+  --font-body: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-data: 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
 }
 
 * {
@@ -30,20 +43,68 @@
 
 @media (min-width: 1024px) {
   :root {
-    --radius-card: 1.25rem;
-    --radius-card-lg: 1.5rem;
+    --radius-card: 0.875rem;
+    --radius-card-lg: 1.125rem;
   }
 }
 
 body {
-  font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-family: var(--font-body);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   overflow-wrap: break-word;
   word-wrap: break-word;
-  hyphens: auto;
   line-height: 1.5;
   transition: color 0.5s ease;
+}
+
+@layer components {
+  /* ── The signature: measured values ──────────────────────────────────────
+     Any number the app has measured or computed. Tabular figures keep digits
+     on a fixed advance width, so a counter animating from 0 to 8.42 does not
+     shuffle the layout, and stacked readings line up on the decimal. */
+  .metric {
+    font-family: var(--font-data);
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: 'tnum' 1, 'zero' 1;
+    letter-spacing: -0.02em;
+  }
+
+  /* Large headline reading, e.g. today's total. */
+  .metric-xl {
+    font-family: var(--font-data);
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: 'tnum' 1, 'zero' 1;
+    font-weight: 500;
+    letter-spacing: -0.04em;
+    line-height: 1;
+  }
+
+  /* ── Labels ──────────────────────────────────────────────────────────────
+     The old design set almost every label at weight 900, uppercase, with
+     0.16em tracking. At 10px that is hard to read and, applied everywhere,
+     flattens hierarchy — when all text shouts, none of it leads. An eyebrow
+     is now a quiet, single-purpose device. */
+  .eyebrow {
+    font-family: var(--font-data);
+    font-size: 0.6875rem;
+    font-weight: 500;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: rgb(100 116 139);
+  }
+
+  .dark .eyebrow {
+    color: rgb(148 163 184);
+  }
+
+  /* Unit suffix trailing a reading: kg, km, kWh. */
+  .unit {
+    font-family: var(--font-data);
+    font-weight: 400;
+    letter-spacing: 0;
+    opacity: 0.55;
+  }
 }
 
 /* Animated Mesh Background */

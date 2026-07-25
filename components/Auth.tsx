@@ -67,11 +67,11 @@ const Auth: React.FC<AuthProps> = ({ onLogin }) => {
             <div className="w-12 h-12 bg-emerald-500 rounded-2xl flex items-center justify-center text-2xl shadow-xl">
               <i className="fa-solid fa-leaf" aria-hidden="true" />
             </div>
-            <span className="text-lg font-black tracking-tight">EcoPulse AI</span>
+            <span className="text-lg font-bold tracking-tight">EcoPulse AI</span>
           </div>
 
           <div className="relative max-w-md">
-            <h2 className="text-4xl xl:text-5xl font-black tracking-tight leading-[1.1]">
+            <h2 className="text-4xl xl:text-5xl font-bold tracking-tight leading-[1.1]">
               Understand your carbon footprint.
             </h2>
             <p className="text-slate-300 font-medium mt-4 leading-relaxed">
@@ -93,7 +93,7 @@ const Auth: React.FC<AuthProps> = ({ onLogin }) => {
             </ul>
           </div>
 
-          <p className="relative text-[0.625rem] text-slate-500 font-semibold uppercase tracking-[0.16em]">
+          <p className="relative text-[0.625rem] text-slate-500 font-semibold uppercase tracking-[0.08em]">
             &copy; {new Date().getFullYear()} EcoPulse AI
           </p>
         </aside>
@@ -105,10 +105,10 @@ const Auth: React.FC<AuthProps> = ({ onLogin }) => {
               <div className="w-16 h-16 bg-emerald-500 rounded-3xl flex items-center justify-center text-white text-3xl mb-6 shadow-xl">
                 <i className="fa-solid fa-leaf" aria-hidden="true" />
               </div>
-              <h1 className="text-3xl font-black text-slate-800 dark:text-white tracking-tight">EcoPulse AI</h1>
+              <h1 className="text-3xl font-bold text-slate-800 dark:text-white tracking-tight">EcoPulse AI</h1>
             </div>
 
-            <h2 className="text-2xl font-black text-slate-800 dark:text-white tracking-tight">
+            <h2 className="text-2xl font-bold text-slate-800 dark:text-white tracking-tight">
               {isLogin ? 'Welcome back' : 'Create your account'}
             </h2>
             <p className="text-sm text-slate-500 dark:text-slate-400 font-medium mt-1.5">
@@ -130,7 +130,7 @@ const Auth: React.FC<AuthProps> = ({ onLogin }) => {
               <div>
                 <label
                   htmlFor="username"
-                  className="block text-[0.6875rem] font-black text-slate-500 dark:text-slate-400 uppercase tracking-[0.14em] mb-2"
+                  className="block text-[0.6875rem] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-[0.08em] mb-2"
                 >
                   Username
                 </label>
@@ -150,7 +150,7 @@ const Auth: React.FC<AuthProps> = ({ onLogin }) => {
               <div>
                 <label
                   htmlFor="password"
-                  className="block text-[0.6875rem] font-black text-slate-500 dark:text-slate-400 uppercase tracking-[0.14em] mb-2"
+                  className="block text-[0.6875rem] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-[0.08em] mb-2"
                 >
                   Password
                 </label>
@@ -177,7 +177,7 @@ const Auth: React.FC<AuthProps> = ({ onLogin }) => {
               <button
                 type="submit"
                 disabled={busy}
-                className="w-full bg-slate-900 dark:bg-emerald-500 hover:bg-slate-800 dark:hover:bg-emerald-400 disabled:opacity-60 disabled:cursor-not-allowed text-white py-4 px-5 rounded-2xl font-black text-sm uppercase tracking-[0.18em] shadow-xl transition-colors"
+                className="w-full bg-slate-900 dark:bg-emerald-500 hover:bg-slate-800 dark:hover:bg-emerald-400 disabled:opacity-60 disabled:cursor-not-allowed text-white py-4 px-5 rounded-2xl font-bold text-sm uppercase tracking-[0.08em] shadow-xl transition-colors"
               >
                 {busy ? 'Please wait…' : isLogin ? 'Sign in' : 'Create account'}
               </button>
@@ -191,7 +191,7 @@ const Auth: React.FC<AuthProps> = ({ onLogin }) => {
                   setIsLogin(!isLogin);
                   setError(null);
                 }}
-                className="font-black text-emerald-600 dark:text-emerald-400 hover:underline"
+                className="font-bold text-emerald-600 dark:text-emerald-400 hover:underline"
               >
                 {isLogin ? 'Sign up' : 'Sign in'}
               </button>

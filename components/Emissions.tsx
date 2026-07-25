@@ -38,7 +38,7 @@ const CustomTooltip = ({ active, payload }: any) => {
   if (active && payload && payload.length) {
     return (
       <div className="bg-slate-900 p-3 rounded-2xl shadow-lg border border-white/10">
-        <p className="text-[0.625rem] font-black text-slate-400 uppercase mb-1">{payload[0].name}</p>
+        <p className="text-[0.625rem] font-bold text-slate-400 uppercase mb-1">{payload[0].name}</p>
         <p className="text-sm font-bold text-white">{Number(payload[0].value).toFixed(2)} kg CO2</p>
       </div>
     );
@@ -118,19 +118,19 @@ const Emissions: React.FC<EmissionsProps> = ({ trips, electricity, bills = [], o
       {/* CUMULATIVE TRAVEL ANALYSIS */}
       <div className="xl:col-span-2 glass p-6 sm:p-8 rounded-card-lg bg-white dark:bg-slate-900 text-slate-900 dark:text-white border border-slate-200 dark:border-white/10 shadow-xl relative overflow-hidden">
         <div className="relative z-10">
-          <span className="text-[0.6875rem] font-black text-emerald-500 dark:text-emerald-400 uppercase tracking-[0.16em]">All-Time Travel Impact</span>
+          <span className="text-[0.6875rem] font-bold text-emerald-500 dark:text-emerald-400 uppercase tracking-[0.08em]">All-Time Travel Impact</span>
           <div className="flex items-baseline gap-2 mt-2">
-            <h2 className="text-5xl font-black tracking-tighter text-slate-900 dark:text-white">{totalTravelCO2.toFixed(1)}</h2>
+            <h2 className="text-5xl font-bold tracking-tighter text-slate-900 dark:text-white">{totalTravelCO2.toFixed(1)}</h2>
             <span className="text-sm font-bold text-slate-500 dark:text-slate-400">kg CO2</span>
           </div>
           <div className="mt-6 grid grid-cols-2 gap-4">
             <div className="p-4 bg-slate-100 dark:bg-white/5 rounded-2xl border border-slate-200 dark:border-white/5">
-              <p className="text-[0.6875rem] font-black text-slate-400 dark:text-slate-400 uppercase">Distance Covered</p>
-              <p className="text-xl font-black text-slate-900 dark:text-white">{totalDistance.toFixed(0)} <span className="text-[0.625rem] text-slate-500 dark:text-slate-400">km</span></p>
+              <p className="text-[0.6875rem] font-bold text-slate-400 dark:text-slate-400 uppercase">Distance Covered</p>
+              <p className="text-xl font-bold text-slate-900 dark:text-white">{totalDistance.toFixed(0)} <span className="text-[0.625rem] text-slate-500 dark:text-slate-400">km</span></p>
             </div>
             <div className="p-4 bg-slate-100 dark:bg-white/5 rounded-2xl border border-slate-200 dark:border-white/5">
-              <p className="text-[0.6875rem] font-black text-slate-400 dark:text-slate-400 uppercase">Trip Count</p>
-              <p className="text-xl font-black text-slate-900 dark:text-white">{trips.length} <span className="text-[0.625rem] text-slate-500 dark:text-slate-400">logs</span></p>
+              <p className="text-[0.6875rem] font-bold text-slate-400 dark:text-slate-400 uppercase">Trip Count</p>
+              <p className="text-xl font-bold text-slate-900 dark:text-white">{trips.length} <span className="text-[0.625rem] text-slate-500 dark:text-slate-400">logs</span></p>
             </div>
           </div>
         </div>
@@ -161,15 +161,15 @@ const Emissions: React.FC<EmissionsProps> = ({ trips, electricity, bills = [], o
               </ResponsiveContainer>
               <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
                 <div className="text-center">
-                  <div className="text-[0.6875rem] font-black text-slate-400 uppercase tracking-[0.16em]">Total</div>
-                  <div className="text-xl font-black text-white">{totalTravelCO2.toFixed(1)} kg</div>
+                  <div className="text-[0.6875rem] font-bold text-slate-400 uppercase tracking-[0.08em]">Total</div>
+                  <div className="text-xl font-bold text-white">{totalTravelCO2.toFixed(1)} kg</div>
                 </div>
               </div>
             </div>
 
             {/* Legend with vehicle colors and delete option */}
             <div className="mt-6 space-y-2">
-              <h4 className="text-[0.6875rem] font-black text-slate-400 dark:text-slate-400 uppercase tracking-[0.16em] mb-3">Vehicle Breakdown</h4>
+              <h4 className="text-[0.6875rem] font-bold text-slate-400 dark:text-slate-400 uppercase tracking-[0.08em] mb-3">Vehicle Breakdown</h4>
               <div className="grid grid-cols-1 gap-2">
                 {pieData.map((entry, index) => (
                   <div
@@ -182,7 +182,7 @@ const Emissions: React.FC<EmissionsProps> = ({ trips, electricity, bills = [], o
                         style={{ backgroundColor: getColor(entry.name, index) }}
                       ></div>
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm font-black text-slate-800 dark:text-white truncate">{entry.name}</p>
+                        <p className="text-sm font-bold text-slate-800 dark:text-white truncate">{entry.name}</p>
                         <p className="text-[0.625rem] font-bold text-slate-500 dark:text-slate-400">
                           {Number(entry.value).toFixed(2)} kg CO2 | {((Number(entry.value) / totalTravelCO2) * 100).toFixed(1)}%
                         </p>
@@ -206,7 +206,7 @@ const Emissions: React.FC<EmissionsProps> = ({ trips, electricity, bills = [], o
             </div>
           </>
         ) : (
-          <div className="py-16 text-center text-slate-400 dark:text-slate-500 text-[0.6875rem] font-black uppercase tracking-[0.16em]">No cumulative data recorded</div>
+          <div className="py-16 text-center text-slate-400 dark:text-slate-500 text-[0.6875rem] font-bold uppercase tracking-[0.08em]">No cumulative data recorded</div>
         )}
       </div>
 
@@ -217,10 +217,10 @@ const Emissions: React.FC<EmissionsProps> = ({ trips, electricity, bills = [], o
             <div className="w-10 h-10 bg-blue-500/10 rounded-xl flex items-center justify-center text-blue-500">
               <i className="fa-solid fa-plug-circle-bolt"></i>
             </div>
-            <h3 className="text-[0.6875rem] font-black text-slate-800 dark:text-white uppercase tracking-[0.16em]">Fixed Monthly Energy</h3>
+            <h3 className="text-[0.6875rem] font-bold text-slate-800 dark:text-white uppercase tracking-[0.08em]">Fixed Monthly Energy</h3>
           </div>
           <div className="text-right">
-            <div className="text-[0.625rem] font-black text-blue-500">{(monthlyEnergyCO2 / 30).toFixed(2)} kg/day</div>
+            <div className="text-[0.625rem] font-bold text-blue-500">{(monthlyEnergyCO2 / 30).toFixed(2)} kg/day</div>
           </div>
         </div>
 
@@ -228,11 +228,11 @@ const Emissions: React.FC<EmissionsProps> = ({ trips, electricity, bills = [], o
           <div className="flex justify-between items-end relative z-10">
             <div>
               <p className="text-[0.6875rem] font-bold text-slate-400 uppercase mb-1">Grid Consumption</p>
-              <div className="text-3xl font-black text-slate-800 dark:text-white">{Number(electricity) || 0} <span className="text-xs font-bold text-slate-400">kWh</span></div>
+              <div className="text-3xl font-bold text-slate-800 dark:text-white">{Number(electricity) || 0} <span className="text-xs font-bold text-slate-400">kWh</span></div>
             </div>
             <div className="text-right">
               <p className="text-[0.6875rem] font-bold text-slate-400 uppercase mb-1">Monthly CO2</p>
-              <div className="text-3xl font-black text-blue-500">{monthlyEnergyCO2.toFixed(1)} <span className="text-xs font-bold text-blue-400/60">kg</span></div>
+              <div className="text-3xl font-bold text-blue-500">{monthlyEnergyCO2.toFixed(1)} <span className="text-xs font-bold text-blue-400/60">kg</span></div>
             </div>
           </div>
           <div className="absolute bottom-0 left-0 h-1 bg-blue-500 transition-all duration-1000" style={{ width: electricity > 0 ? '100%' : '0%' }}></div>
@@ -241,16 +241,16 @@ const Emissions: React.FC<EmissionsProps> = ({ trips, electricity, bills = [], o
 
       {/* VEHICLE EFFICIENCY RANKING */}
       <div className="space-y-4">
-        <h3 className="text-[0.6875rem] font-black text-slate-400 dark:text-slate-400 uppercase tracking-[0.16em] ml-1">Modal Distribution</h3>
+        <h3 className="text-[0.6875rem] font-bold text-slate-400 dark:text-slate-400 uppercase tracking-[0.08em] ml-1">Modal Distribution</h3>
         <div className="space-y-3">
           {Object.entries(vehicleStats).sort((a, b) => Number(b[1]) - Number(a[1])).map(([vehicle, co2], idx) => (
             <div key={vehicle} className="glass p-4 rounded-2xl flex items-center gap-4 bg-white dark:bg-slate-900/40 border-white/5">
-              <div className="w-10 h-10 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-500 font-black text-xs">#{idx + 1}</div>
+              <div className="w-10 h-10 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-500 font-bold text-xs">#{idx + 1}</div>
               <div className="flex-1">
                 <div className="flex justify-between items-center mb-1.5">
-                  <span className="text-sm font-black text-slate-800 dark:text-white">{vehicle}</span>
+                  <span className="text-sm font-bold text-slate-800 dark:text-white">{vehicle}</span>
                   {/* Fixed toFied on possibly unknown type and arithmetic operation types */}
-                  <span className="text-xs font-black text-emerald-500">{Number(co2).toFixed(1)} kg</span>
+                  <span className="text-xs font-bold text-emerald-500">{Number(co2).toFixed(1)} kg</span>
                 </div>
                 <div className="h-1.5 w-full bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
                   {/* Ensure no division by zero and cast to number */}

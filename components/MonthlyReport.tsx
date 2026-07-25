@@ -287,8 +287,8 @@ const MonthlyReport: React.FC<MonthlyReportProps> = ({ user, trips, bills, onClo
             <div className="w-full max-w-md sm:max-w-lg bg-slate-900 rounded-card-lg p-6 sm:p-8 space-y-5 animate-in slide-in-from-bottom-8 duration-400 max-h-[90vh] overflow-y-auto">
                 <div className="flex items-center justify-between">
                     <div>
-                        <h3 className="text-lg font-black text-white">Monthly Report</h3>
-                        <p className="text-[0.6875rem] text-slate-400 font-bold uppercase tracking-[0.12em]">{stats.monthName} {stats.year}</p>
+                        <h3 className="text-lg font-bold text-white">Monthly Report</h3>
+                        <p className="text-[0.6875rem] text-slate-400 font-bold uppercase tracking-[0.08em]">{stats.monthName} {stats.year}</p>
                     </div>
                     <button onClick={onClose} className="w-9 h-9 bg-slate-800 rounded-2xl flex items-center justify-center text-slate-400 hover:text-white transition-colors">
                         <i className="fa-solid fa-xmark" />
@@ -309,8 +309,8 @@ const MonthlyReport: React.FC<MonthlyReportProps> = ({ user, trips, bills, onClo
                     ].map(s => (
                         <div key={s.label} className="p-3 bg-slate-800 rounded-2xl text-center">
                             <div className="text-lg mb-0.5">{s.icon}</div>
-                            <div className="text-sm font-black text-white">{s.value}</div>
-                            <div className="text-[0.625rem] text-slate-400 font-black uppercase tracking-widest">{s.label}</div>
+                            <div className="text-sm font-bold text-white">{s.value}</div>
+                            <div className="text-[0.625rem] text-slate-400 font-bold uppercase tracking-[0.08em]">{s.label}</div>
                         </div>
                     ))}
                 </div>
@@ -319,14 +319,14 @@ const MonthlyReport: React.FC<MonthlyReportProps> = ({ user, trips, bills, onClo
                 <div className="flex gap-3">
                     <button
                         onClick={handleWhatsApp}
-                        className="flex-1 flex items-center justify-center gap-2 py-3 bg-[#25D366] hover:bg-[#1ebe59] rounded-2xl text-white font-black text-sm transition-colors"
+                        className="flex-1 flex items-center justify-center gap-2 py-3 bg-[#25D366] hover:bg-[#1ebe59] rounded-2xl text-white font-bold text-sm transition-colors"
                     >
                         <i className="fa-brands fa-whatsapp text-lg" /> WhatsApp
                     </button>
                     <button
                         onClick={handleShare}
                         disabled={sharing}
-                        className="flex-1 flex items-center justify-center gap-2 py-3 bg-emerald-500 hover:bg-emerald-400 disabled:opacity-50 rounded-2xl text-white font-black text-sm transition-colors"
+                        className="flex-1 flex items-center justify-center gap-2 py-3 bg-emerald-500 hover:bg-emerald-400 disabled:opacity-50 rounded-2xl text-white font-bold text-sm transition-colors"
                     >
                         {sharing
                             ? <i className="fa-solid fa-spinner animate-spin" />

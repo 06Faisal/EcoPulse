@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { LineChart, Line, XAxis, YAxis, ResponsiveContainer, Tooltip, LabelList } from 'recharts';
+import { LineChart, Line, XAxis, YAxis, ResponsiveContainer, Tooltip, LabelList, ReferenceLine } from 'recharts';
 import { Trip, AIInsight, UserProfile, UtilityBill } from '../services/types';
 import { getCO2Equivalents } from '../services/co2Equivalents';
 import ShareCard from './ShareCard';
@@ -17,7 +17,7 @@ const CustomTooltip = ({ active, payload, label }: any) => {
   if (active && payload && payload.length) {
     return (
       <div className="bg-slate-900 border border-emerald-500/30 p-3 rounded-2xl shadow-xl">
-        <p className="text-[0.625rem] font-black text-emerald-400 uppercase mb-1 tracking-widest">{label}</p>
+        <p className="text-[0.625rem] font-bold text-emerald-400 uppercase mb-1 tracking-[0.08em]">{label}</p>
         <p className="text-sm font-bold text-white">{Number(payload[0].value).toFixed(2)} <span className="text-[0.625rem] opacity-60">kg</span></p>
       </div>
     );
@@ -88,13 +88,13 @@ const WeeklyRing: React.FC<{ used: number; goal: number }> = ({ used, goal }) =>
           />
         </svg>
         <div className="absolute inset-0 flex flex-col items-center justify-center">
-          <span className={`text-xs font-black ${over ? 'text-rose-500' : 'text-emerald-500'}`}>
+          <span className={`text-xs font-bold ${over ? 'text-rose-500' : 'text-emerald-500'}`}>
             {Math.round(pct * 100)}%
           </span>
-          <span className="text-[0.5625rem] text-slate-400 font-black">WEEK</span>
+          <span className="text-[0.5625rem] text-slate-400 font-bold">WEEK</span>
         </div>
       </div>
-      <div className="text-[0.625rem] font-black text-slate-400 uppercase tracking-widest mt-1">
+      <div className="text-[0.625rem] font-bold text-slate-400 uppercase tracking-[0.08em] mt-1">
         {used.toFixed(1)} / {goal} kg
       </div>
     </div>
@@ -110,6 +110,7 @@ const Dashboard: React.FC<DashboardProps> = ({ trips, bills, electricity, insigh
   const dailyBehaviors = trips.filter(t => t.date.split('T')[0] === todayStr);
   const dailyTotal = Number(dailyBehaviors.reduce((acc, t) => acc + (t.co2 || 0), 0)) || 0;
   const progressPercent = Math.min((dailyTotal / (user.dailyGoal || 1)) * 100, 100);
+  const overLimit = dailyTotal > user.dailyGoal;
 
   // Weekly CO₂ (last 7 days)
   const weekCO2 = (() => {
@@ -142,6 +143,9 @@ const Dashboard: React.FC<DashboardProps> = ({ trips, bills, electricity, insigh
   };
 
   const chartData = getLast7DaysData();
+  // A trend line drawn through a single point is noise, so the chart only
+  // appears once there is something to trend.
+  const loggedDays = chartData.filter(d => d.value !== null).length;
 
   return (
     <div className="space-y-6 pt-4 pb-4">
@@ -150,68 +154,144 @@ const Dashboard: React.FC<DashboardProps> = ({ trips, bills, electricity, insigh
         
         {/* Main Column (2/3 width on desktop) */}
         <div className="lg:col-span-2 space-y-6">
-          {/* Daily CO₂ card */}
-          <div className="glass p-6 rounded-card border-slate-200 dark:border-white/10 space-y-4 animate-fade-in-up opacity-0" style={{ animationDelay: '0ms' }}>
-            <div className="flex justify-between items-end">
-              <div>
-                <span className="text-slate-400 dark:text-slate-400 text-[0.6875rem] font-black uppercase tracking-[0.16em]">Real-time Impact</span>
-                <div className="flex items-baseline gap-1 mt-1">
-                  <h2 className="text-4xl font-black text-slate-800 dark:text-white tracking-tighter">
+          {/* Today's reading. The hero is the meter itself: one large value in
+              tabular figures, the daily limit marked on the scale beneath it. */}
+          <div className="glass p-6 sm:p-7 rounded-card border-slate-200 dark:border-white/10 animate-fade-in-up opacity-0" style={{ animationDelay: '0ms' }}>
+            <div className="flex justify-between items-start gap-4">
+              <div className="min-w-0">
+                <span className="eyebrow">Today</span>
+                <div className="flex items-baseline gap-2 mt-2">
+                  <h2 className="metric-xl text-[2.75rem] sm:text-5xl text-slate-900 dark:text-white">
                     <Odometer value={dailyTotal} />
                   </h2>
-                  <span className="text-slate-500 dark:text-slate-400 font-bold text-sm italic">kg CO₂e</span>
+                  <span className="unit text-sm text-slate-500 dark:text-slate-400">kg CO₂e</span>
                 </div>
               </div>
-              <div className="text-right">
-                <span className="text-slate-400 dark:text-slate-400 text-[0.6875rem] font-black uppercase tracking-[0.16em]">Limit: {user.dailyGoal} kg</span>
-                <div className={`text-xs font-black mt-1 ${dailyTotal > user.dailyGoal ? 'text-rose-500' : 'text-emerald-500'}`}>
-                  {dailyTotal > user.dailyGoal ? 'ABOVE LIMIT' : 'ON TRACK'}
-                </div>
-              </div>
-            </div>
-            <div className="h-4 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden shadow-inner">
               <div
-                className={`h-full transition-all duration-1000 ease-out rounded-full ${dailyTotal > user.dailyGoal ? 'bg-gradient-to-r from-rose-400 to-rose-600' : 'bg-gradient-to-r from-emerald-400 to-teal-500'}`}
-                style={{ width: `${progressPercent}%` }}
-              />
+                className={`shrink-0 px-2.5 py-1 rounded-md text-[0.6875rem] font-semibold ${
+                  overLimit
+                    ? 'bg-orange-100 text-orange-700 dark:bg-orange-500/15 dark:text-orange-400'
+                    : 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-400'
+                }`}
+              >
+                {overLimit ? 'Over limit' : 'Within limit'}
+              </div>
             </div>
 
-            {/* CO₂ Equivalents */}
-            {equivalents.length > 0 && (
-              <div className="pt-2 border-t border-slate-100 dark:border-slate-800">
-                <p className="text-[0.625rem] font-black text-slate-400 uppercase tracking-[0.14em] mb-2">That's equivalent to...</p>
-                <div className="flex gap-2 flex-wrap">
-                  {equivalents.map((eq, i) => (
-                    <div key={i} className="flex items-center gap-1.5 px-2.5 py-1.5 bg-slate-50 dark:bg-slate-800/60 rounded-xl">
-                      <span className="text-sm">{eq.icon}</span>
-                      <div>
-                        <div className="text-[0.625rem] font-black text-slate-700 dark:text-white leading-none">{eq.value}</div>
-                        <div className="text-[0.5625rem] text-slate-400 font-medium leading-none mt-0.5">{eq.label}</div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
+            {/* Scale. A single flat bar with a tick at the daily limit reads as a
+                gauge; the previous gradient fill read as decoration. */}
+            <div className="mt-6">
+              <div className="relative h-1.5 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
+                <div
+                  className={`h-full transition-all duration-700 ease-out rounded-full ${
+                    overLimit ? 'bg-orange-500' : 'bg-emerald-500'
+                  }`}
+                  style={{ width: `${progressPercent}%` }}
+                />
               </div>
+              <div className="flex justify-between mt-2">
+                <span className="metric text-[0.625rem] text-slate-400">0</span>
+                <span className="metric text-[0.625rem] text-slate-400">
+                  {user.dailyGoal} kg limit
+                </span>
+              </div>
+            </div>
+
+            {/* Equivalents translate an abstract figure into something physical.
+                Only meaningful once something has actually been logged. */}
+            {dailyBehaviors.length === 0 ? (
+              <p className="mt-6 pt-5 border-t border-slate-100 dark:border-slate-800 text-sm text-slate-500 dark:text-slate-400">
+                Nothing logged today. Add a trip on the{' '}
+                <span className="font-semibold text-slate-700 dark:text-slate-200">Log</span> tab and
+                your reading will appear here.
+              </p>
+            ) : (
+              equivalents.length > 0 && (
+                <div className="mt-6 pt-5 border-t border-slate-100 dark:border-slate-800">
+                  <p className="eyebrow mb-3">Same as</p>
+                  <div className="flex gap-2 flex-wrap">
+                    {equivalents.map((eq, i) => (
+                      <div
+                        key={i}
+                        className="flex items-center gap-2 px-3 py-2 bg-slate-50 dark:bg-slate-800/60 rounded-lg"
+                      >
+                        <span className="text-sm" aria-hidden="true">{eq.icon}</span>
+                        <span>
+                          <span className="metric block text-xs text-slate-800 dark:text-white leading-none">
+                            {eq.value}
+                          </span>
+                          <span className="block text-[0.625rem] text-slate-500 dark:text-slate-400 leading-none mt-1">
+                            {eq.label}
+                          </span>
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )
             )}
           </div>
 
           {/* 7-day chart */}
           <div className="glass p-6 rounded-card border-slate-200 dark:border-white/10 animate-fade-in-up opacity-0" style={{ animationDelay: '300ms' }}>
-            <div className="flex justify-between items-center mb-6 px-1">
-              <h3 className="text-[0.6875rem] font-black text-slate-400 dark:text-slate-400 uppercase tracking-[0.16em]">Weekly Projection</h3>
-              <div className="text-[0.625rem] font-black text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-3 py-1 rounded-full uppercase tracking-[0.12em]">Week View</div>
+            <div className="flex justify-between items-baseline mb-5">
+              <h3 className="eyebrow">Last 7 days</h3>
+              <span className="metric text-[0.6875rem] text-slate-500 dark:text-slate-400">
+                {weekCO2.toFixed(1)} <span className="unit">kg total</span>
+              </span>
             </div>
             <div className="h-56 w-full">
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={chartData} margin={{ left: 0, right: 0, top: 10, bottom: 20 }}>
-                  <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 9, fontWeight: 700 }} interval={0} padding={{ left: 20, right: 20 }} />
-                  <YAxis axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 8, fontWeight: 700 }} width={28} label={{ value: 'kg', angle: -90, position: 'insideLeft', fill: '#94a3b8', fontSize: 9, fontWeight: 700 }} />
-                  <Tooltip content={<CustomTooltip />} cursor={{ stroke: '#10b981', strokeWidth: 1, strokeDasharray: '5 5' }} />
-                  <Line type="monotone" dataKey="value" stroke="#10b981" strokeWidth={4} dot={{ r: 5, fill: '#fff', strokeWidth: 3, stroke: '#10b981' }} activeDot={{ r: 8, strokeWidth: 0, fill: '#10b981' }} animationDuration={1500} connectNulls={true}>
-                    <LabelList dataKey="value" content={<ChartValueLabel />} />
-                  </Line>
-                </LineChart>
-              </ResponsiveContainer>
+              {loggedDays === 0 ? (
+                <div className="h-full flex flex-col items-center justify-center text-center px-6">
+                  <i className="fa-regular fa-chart-bar text-2xl text-slate-300 dark:text-slate-700 mb-3" aria-hidden="true" />
+                  <p className="text-sm text-slate-500 dark:text-slate-400">
+                    No trips logged this week yet.
+                  </p>
+                  <p className="text-[0.6875rem] text-slate-400 dark:text-slate-500 mt-1">
+                    Log two or three days and the trend line becomes useful.
+                  </p>
+                </div>
+              ) : (
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={chartData} margin={{ left: 0, right: 8, top: 16, bottom: 8 }}>
+                    <XAxis
+                      dataKey="name"
+                      axisLine={false}
+                      tickLine={false}
+                      tick={{ fill: '#94a3b8', fontSize: 10, fontFamily: 'IBM Plex Mono, monospace' }}
+                      interval={0}
+                      padding={{ left: 16, right: 16 }}
+                    />
+                    <YAxis
+                      axisLine={false}
+                      tickLine={false}
+                      tick={{ fill: '#94a3b8', fontSize: 10, fontFamily: 'IBM Plex Mono, monospace' }}
+                      width={32}
+                    />
+                    <Tooltip content={<CustomTooltip />} cursor={{ stroke: '#cbd5e1', strokeWidth: 1 }} />
+                    {/* The daily limit as a reference line turns the chart from a
+                        shape into a judgement: above the line is over budget. */}
+                    <ReferenceLine
+                      y={user.dailyGoal}
+                      stroke="#f97316"
+                      strokeDasharray="4 4"
+                      strokeWidth={1}
+                    />
+                    <Line
+                      type="monotone"
+                      dataKey="value"
+                      stroke="#10b981"
+                      strokeWidth={2}
+                      dot={{ r: 3, fill: '#10b981', strokeWidth: 0 }}
+                      activeDot={{ r: 5, strokeWidth: 0, fill: '#10b981' }}
+                      animationDuration={900}
+                      connectNulls
+                    >
+                      <LabelList dataKey="value" content={<ChartValueLabel />} />
+                    </Line>
+                  </LineChart>
+                </ResponsiveContainer>
+              )}
             </div>
           </div>
         </div>
@@ -222,19 +302,19 @@ const Dashboard: React.FC<DashboardProps> = ({ trips, bills, electricity, insigh
           <div className="grid grid-cols-2 gap-4 animate-fade-in-up opacity-0" style={{ animationDelay: '100ms' }}>
             <div className="glass interactive p-5 rounded-card border-slate-200 dark:border-white/10 flex flex-col items-center justify-center">
               <WeeklyRing used={weekCO2} goal={weeklyGoal} />
-              <p className="text-[0.625rem] font-black text-slate-400 uppercase tracking-[0.12em] mt-2 text-center">Weekly Goal</p>
+              <p className="text-[0.625rem] font-bold text-slate-400 uppercase tracking-[0.08em] mt-2 text-center">Weekly Goal</p>
             </div>
             <div className="glass p-5 rounded-card border-slate-200 dark:border-white/10 flex flex-col items-center justify-center gap-3">
               <div className="w-12 h-12 rounded-2xl bg-amber-500/10 flex items-center justify-center">
                 <i className="fa-solid fa-fire text-amber-500 text-xl" />
               </div>
               <div className="text-center">
-                <div className="text-2xl font-black text-slate-800 dark:text-white">{user.streak}</div>
-                <div className="text-[0.625rem] font-black text-slate-400 uppercase tracking-widest">Day Streak</div>
+                <div className="text-2xl font-bold text-slate-800 dark:text-white">{user.streak}</div>
+                <div className="text-[0.625rem] font-bold text-slate-400 uppercase tracking-[0.08em]">Day Streak</div>
               </div>
               <button
                 onClick={() => setShowShare(true)}
-                className="w-full py-2 bg-emerald-500 hover:bg-emerald-400 text-white text-[0.625rem] font-black uppercase tracking-widest rounded-xl transition-colors flex items-center justify-center gap-1.5"
+                className="w-full py-2 bg-emerald-500 hover:bg-emerald-400 text-white text-[0.625rem] font-bold uppercase tracking-[0.08em] rounded-xl transition-colors flex items-center justify-center gap-1.5"
               >
                 <i className="fa-solid fa-share-nodes text-xs" /> Share
               </button>
@@ -248,9 +328,9 @@ const Dashboard: React.FC<DashboardProps> = ({ trips, bills, electricity, insigh
           >
             <div className="flex items-center gap-2 mb-4">
               <div className={`w-2.5 h-2.5 rounded-full ${loading ? 'bg-amber-400 animate-pulse' : 'bg-emerald-400 ai-pulse'}`}></div>
-              <span className="text-[0.6875rem] font-black tracking-[0.16em] text-emerald-600 dark:text-emerald-400 uppercase">ML Insight Engine</span>
+              <span className="text-[0.6875rem] font-bold tracking-[0.08em] text-emerald-600 dark:text-emerald-400 uppercase">ML Insight Engine</span>
             </div>
-            <h3 className="text-lg font-black text-slate-800 dark:text-white mb-2 leading-tight">
+            <h3 className="text-lg font-bold text-slate-800 dark:text-white mb-2 leading-tight">
               {loading ? "Analyzing behaviors..." : insight?.risk === 'High' ? "Imminent Carbon Alert" : "Peak Efficiency Mode"}
             </h3>
             <p className="text-sm text-slate-600 dark:text-slate-300 font-medium leading-relaxed mb-6">
@@ -259,12 +339,12 @@ const Dashboard: React.FC<DashboardProps> = ({ trips, bills, electricity, insigh
             {insight && !loading && (
               <div className="grid grid-cols-2 gap-4 mt-4 bg-white/60 dark:bg-slate-900/40 p-4 rounded-2xl border border-slate-200 dark:border-white/5">
                 <div>
-                  <div className="text-[0.6875rem] font-black text-slate-400 uppercase mb-1">Travel Predicted</div>
-                  <div className="text-lg font-black text-slate-800 dark:text-white">{Number(insight.breakdown.travel).toFixed(1)} kg</div>
+                  <div className="text-[0.6875rem] font-bold text-slate-400 uppercase mb-1">Travel Predicted</div>
+                  <div className="text-lg font-bold text-slate-800 dark:text-white">{Number(insight.breakdown.travel).toFixed(1)} kg</div>
                 </div>
                 <div>
-                  <div className="text-[0.6875rem] font-black text-slate-400 uppercase mb-1">Energy Baseline</div>
-                  <div className="text-lg font-black text-slate-800 dark:text-white">{Number(insight.breakdown.energy).toFixed(1)} kg</div>
+                  <div className="text-[0.6875rem] font-bold text-slate-400 uppercase mb-1">Energy Baseline</div>
+                  <div className="text-lg font-bold text-slate-800 dark:text-white">{Number(insight.breakdown.energy).toFixed(1)} kg</div>
                 </div>
               </div>
             )}
@@ -278,29 +358,29 @@ const Dashboard: React.FC<DashboardProps> = ({ trips, bills, electricity, insigh
           <div className="w-12 h-12 rounded-2xl bg-blue-500/10 flex items-center justify-center text-blue-500 mb-3 border border-blue-500/10">
             <i className="fa-solid fa-bolt-lightning text-xl"></i>
           </div>
-          <span className="text-[0.6875rem] font-black text-slate-400 uppercase tracking-[0.16em] mb-1">Energy Baseline</span>
-          <div className="text-xl font-black text-slate-800 dark:text-white">{Number(electricity) || 0} <span className="text-xs font-bold text-slate-400">kWh</span></div>
+          <span className="text-[0.6875rem] font-bold text-slate-400 uppercase tracking-[0.08em] mb-1">Energy Baseline</span>
+          <div className="text-xl font-bold text-slate-800 dark:text-white">{Number(electricity) || 0} <span className="text-xs font-bold text-slate-400">kWh</span></div>
         </div>
         <div className="glass p-6 rounded-card flex flex-col items-center justify-center text-center border-slate-200 dark:border-white/10">
           <div className="w-12 h-12 rounded-2xl bg-orange-500/10 flex items-center justify-center text-orange-500 mb-3 border border-orange-500/10">
             <i className="fa-solid fa-calendar-check text-xl"></i>
           </div>
-          <span className="text-[0.6875rem] font-black text-slate-400 uppercase tracking-[0.16em] mb-1">Logs Today</span>
-          <div className="text-xl font-black text-slate-800 dark:text-white">{dailyBehaviors.length} <span className="text-xs font-bold text-slate-400">trips</span></div>
+          <span className="text-[0.6875rem] font-bold text-slate-400 uppercase tracking-[0.08em] mb-1">Logs Today</span>
+          <div className="text-xl font-bold text-slate-800 dark:text-white">{dailyBehaviors.length} <span className="text-xs font-bold text-slate-400">trips</span></div>
         </div>
         <div className="glass interactive p-6 rounded-card flex flex-col items-center justify-center text-center border-slate-200 dark:border-white/10">
           <div className="w-12 h-12 rounded-2xl bg-emerald-500/10 flex items-center justify-center text-emerald-500 mb-3 border border-emerald-500/10">
             <i className="fa-solid fa-route text-xl"></i>
           </div>
-          <span className="text-[0.6875rem] font-black text-slate-400 uppercase tracking-[0.16em] mb-1">Total Travel</span>
-          <div className="text-xl font-black text-slate-800 dark:text-white">{trips.reduce((acc, t) => acc + (t.distance || 0), 0).toFixed(1)} <span className="text-xs font-bold text-slate-400">km</span></div>
+          <span className="text-[0.6875rem] font-bold text-slate-400 uppercase tracking-[0.08em] mb-1">Total Travel</span>
+          <div className="text-xl font-bold text-slate-800 dark:text-white">{trips.reduce((acc, t) => acc + (t.distance || 0), 0).toFixed(1)} <span className="text-xs font-bold text-slate-400">km</span></div>
         </div>
         <div className="glass interactive p-6 rounded-card flex flex-col items-center justify-center text-center border-slate-200 dark:border-white/10">
           <div className="w-12 h-12 rounded-2xl bg-rose-500/10 flex items-center justify-center text-rose-500 mb-3 border border-rose-500/10">
             <i className="fa-solid fa-cloud-arrow-down text-xl"></i>
           </div>
-          <span className="text-[0.6875rem] font-black text-slate-400 uppercase tracking-[0.16em] mb-1">Total Emissions</span>
-          <div className="text-xl font-black text-slate-800 dark:text-white">{trips.reduce((acc, t) => acc + (t.co2 || 0), 0).toFixed(1)} <span className="text-xs font-bold text-slate-400">kg</span></div>
+          <span className="text-[0.6875rem] font-bold text-slate-400 uppercase tracking-[0.08em] mb-1">Total Emissions</span>
+          <div className="text-xl font-bold text-slate-800 dark:text-white">{trips.reduce((acc, t) => acc + (t.co2 || 0), 0).toFixed(1)} <span className="text-xs font-bold text-slate-400">kg</span></div>
         </div>
       </div>
 
