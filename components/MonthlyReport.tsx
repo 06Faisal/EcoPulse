@@ -303,13 +303,13 @@ const MonthlyReport: React.FC<MonthlyReportProps> = ({ user, trips, bills, onClo
                 {/* Quick stat pills */}
                 <div className="grid grid-cols-3 gap-2">
                     {[
-                        { label: 'Trips', value: stats.tripCount, icon: '🚗' },
-                        { label: 'Best Week', value: `${stats.bestWeekCO2.toFixed(1)} kg`, icon: '⭐' },
-                        { label: 'Saved', value: `${stats.savedVsAvg.toFixed(1)} kg`, icon: '🌱' },
+                        { label: 'Trips', value: stats.tripCount, icon: 'fa-route' },
+                        { label: 'Best Week', value: `${stats.bestWeekCO2.toFixed(1)} kg`, icon: 'fa-arrow-trend-down' },
+                        { label: 'Saved', value: `${stats.savedVsAvg.toFixed(1)} kg`, icon: 'fa-leaf' },
                     ].map(s => (
                         <div key={s.label} className="p-3 bg-slate-800 rounded-2xl text-center">
-                            <div className="text-lg mb-0.5">{s.icon}</div>
-                            <div className="text-sm font-bold text-white">{s.value}</div>
+                            <i className={`fa-solid ${s.icon} text-slate-400 text-sm mb-1.5`} aria-hidden="true" />
+                            <div className="metric text-sm text-white">{s.value}</div>
                             <div className="text-[0.625rem] text-slate-400 font-bold uppercase tracking-[0.08em]">{s.label}</div>
                         </div>
                     ))}

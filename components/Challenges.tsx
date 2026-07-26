@@ -8,6 +8,8 @@ import { Challenge, ChallengeType } from '../services/types';
 // own local list, visible only to themselves.
 const OWNER_USERNAME = 'faisal';
 
+const STORAGE_KEY = 'ecopulse_challenges_v2';
+
 interface ChallengesProps {
     userId: string;
     username: string;
@@ -19,7 +21,7 @@ interface ChallengesProps {
 const PRESET_CHALLENGES: Challenge[] = [
     {
         id: 'zero-car-week',
-        title: 'Zero-Car Week 🚌',
+        title: 'Zero-Car Week',
         description: 'No private car trips for 7 days. Use metro, bus, or cycles only.',
         type: 'zero_car_week',
         goalValue: 0,
@@ -33,7 +35,7 @@ const PRESET_CHALLENGES: Challenge[] = [
     },
     {
         id: 'low-carbon-week',
-        title: 'Under 10 kg Week 🎯',
+        title: 'Under 10 kg Week',
         description: 'Keep your total CO₂ under 10 kg for travel this week.',
         type: 'low_carbon_day',
         goalValue: 10,
@@ -47,7 +49,7 @@ const PRESET_CHALLENGES: Challenge[] = [
     },
     {
         id: 'transit-champion',
-        title: 'Transit Champion 🚇',
+        title: 'Transit Champion',
         description: 'Use public transport for 5 trips this week.',
         type: 'public_transit',
         goalValue: 5,
@@ -61,7 +63,7 @@ const PRESET_CHALLENGES: Challenge[] = [
     },
     {
         id: 'cycle-week',
-        title: 'Cycle & Walk Week 🚴',
+        title: 'Cycle & Walk Week',
         description: 'Log at least 10 km of cycling or walking this week.',
         type: 'custom',
         goalValue: 10,
@@ -76,7 +78,7 @@ const PRESET_CHALLENGES: Challenge[] = [
 ];
 
 const typeColors: Record<ChallengeType, { bg: string; text: string; icon: string }> = {
-    zero_car_week: { bg: 'bg-rose-500/10', text: 'text-rose-500', icon: 'fa-car-slash' },
+    zero_car_week: { bg: 'bg-rose-500/10', text: 'text-rose-500', icon: 'fa-person-walking' },
     low_carbon_day: { bg: 'bg-emerald-500/10', text: 'text-emerald-500', icon: 'fa-leaf' },
     public_transit: { bg: 'bg-blue-500/10', text: 'text-blue-500', icon: 'fa-train-subway' },
     custom: { bg: 'bg-purple-500/10', text: 'text-purple-500', icon: 'fa-star' },
@@ -92,8 +94,12 @@ const Challenges: React.FC<ChallengesProps> = ({ userId, username, userCO2ThisWe
     const isOwner = username.trim().toLowerCase() === OWNER_USERNAME;
 
     const [challenges, setChallenges] = useState<Challenge[]>(() => {
-        const stored = localStorage.getItem('ecopulse_challenges');
-        if (stored) return JSON.parse(stored);
+        // Versioned: bump STORAGE_KEY whenever PRESET_CHALLENGES changes,
+        // otherwise the cached copy shadows the new list forever.
+        const stored = localStorage.getItem(STORAGE_KEY);
+        if (stored) {
+            try { return JSON.parse(stored); } catch { /* fall through to presets */ }
+        }
         return PRESET_CHALLENGES;
     });
     const [showCreate, setShowCreate] = useState(false);
@@ -104,7 +110,7 @@ const Challenges: React.FC<ChallengesProps> = ({ userId, username, userCO2ThisWe
 
     const persist = (updated: Challenge[]) => {
         setChallenges(updated);
-        localStorage.setItem('ecopulse_challenges', JSON.stringify(updated));
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
     };
 
     const handleJoin = (id: string) => {
@@ -113,7 +119,7 @@ const Challenges: React.FC<ChallengesProps> = ({ userId, username, userCO2ThisWe
         );
         persist(updated);
         const joined = updated.find(c => c.id === id)?.userJoined;
-        setToast(joined ? '🎉 Challenge joined! Good luck!' : 'Left challenge.');
+        setToast(joined ? 'Challenge joined' : 'Left challenge.');
         setTimeout(() => setToast(''), 3000);
     };
 
@@ -138,7 +144,7 @@ const Challenges: React.FC<ChallengesProps> = ({ userId, username, userCO2ThisWe
         setNewGoal('');
         setNewDays('7');
         setShowCreate(false);
-        setToast('✅ Challenge created!');
+        setToast('Challenge created');
         setTimeout(() => setToast(''), 3000);
     };
 
@@ -161,7 +167,7 @@ const Challenges: React.FC<ChallengesProps> = ({ userId, username, userCO2ThisWe
                 </div>
                 <h2 className="text-xl font-bold text-slate-800 dark:text-white">Challenges</h2>
                 <p className="text-sm text-slate-500 dark:text-slate-400 font-medium mt-1">
-                    Compete, commit, and cut carbon with others
+                    Join a challenge and keep your emissions in check
                 </p>
                 <div className="flex justify-center gap-4 mt-4">
                     <div className="text-center">
@@ -240,14 +246,12 @@ const Challenges: React.FC<ChallengesProps> = ({ userId, username, userCO2ThisWe
                                 <div className="flex-1 min-w-0">
                                     <div className="flex items-center justify-between gap-2 flex-wrap">
                                         <h4 className="font-bold text-slate-800 dark:text-white text-sm">{c.title}</h4>
-                                        <span className="text-[0.625rem] font-bold text-slate-400">
-                                            👥 {c.participantCount?.toLocaleString()} joined
-                                        </span>
                                     </div>
                                     <p className="text-[0.6875rem] text-slate-500 dark:text-slate-400 font-medium mt-1 leading-tight">{c.description}</p>
                                     <div className="flex items-center justify-between mt-3 flex-wrap gap-2">
-                                        <span className="text-[0.625rem] text-slate-400 font-bold">
-                                            ⏱ {daysLeft(c.endsAt)} days left
+                                        <span className="text-[0.625rem] text-slate-400 font-semibold flex items-center gap-1.5">
+                                            <i className="fa-regular fa-clock" aria-hidden="true" />
+                                            {daysLeft(c.endsAt)} days left
                                         </span>
                                         <button
                                             onClick={() => handleJoin(c.id)}

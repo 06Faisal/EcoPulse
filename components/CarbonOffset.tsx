@@ -14,7 +14,7 @@ const OFFSET_PROVIDERS = [
         icon: 'fa-tree',
         color: 'from-green-500 to-emerald-600',
         pricePerKg: 1.2,
-        badge: '🇮🇳 India-based',
+        badge: 'India-based',
     },
     {
         name: 'Gold Standard',
@@ -23,7 +23,7 @@ const OFFSET_PROVIDERS = [
         icon: 'fa-award',
         color: 'from-yellow-500 to-amber-600',
         pricePerKg: 2.1,
-        badge: '🏆 UN-backed',
+        badge: 'UN-backed',
     },
     {
         name: 'Climate Partner India',
@@ -32,7 +32,7 @@ const OFFSET_PROVIDERS = [
         icon: 'fa-wind',
         color: 'from-blue-500 to-cyan-600',
         pricePerKg: 1.8,
-        badge: '🌏 Asia focus',
+        badge: 'Asia focus',
     },
 ];
 

@@ -182,16 +182,16 @@ const Profile: React.FC<ProfileProps> = ({ user, trips, bills = [], onUpdateProf
     if (notifPermission === 'granted' && user.notificationsEnabled) {
       cancelDailyReminder();
       onUpdateProfile({ notificationsEnabled: false });
-      setToast('🔕 Daily reminders turned off');
+      setToast('Daily reminders turned off');
     } else {
       const perm = await requestNotificationPermission();
       setNotifPermission(perm);
       if (perm === 'granted') {
         scheduleDailyReminder(20); // 8pm
         onUpdateProfile({ notificationsEnabled: true });
-        setToast('🔔 Daily reminders set for 8 PM!');
+        setToast('Daily reminders set for 8 PM');
       } else {
-        setToast('⚠️ Please allow notifications in browser settings');
+        setToast('Allow notifications in your browser settings');
       }
     }
     setTimeout(() => setToast(null), 4000);
@@ -219,7 +219,7 @@ const Profile: React.FC<ProfileProps> = ({ user, trips, bills = [], onUpdateProf
       const prev = lastSeen[m.id] ?? -1;
       if (m.unlockedTierIndex > prev && m.unlockedTierIndex >= 0) {
         const tier = m.allTiers[m.unlockedTierIndex];
-        newUnlock = `🏆 ${m.title}: ${tier.label} Unlocked!`;
+        newUnlock = `${m.title}: ${tier.label} unlocked`;
         lastSeen[m.id] = m.unlockedTierIndex;
       }
     });
@@ -534,10 +534,8 @@ const Profile: React.FC<ProfileProps> = ({ user, trips, bills = [], onUpdateProf
                         className={`flex items-center justify-between p-5 border-b border-slate-50 dark:border-slate-800/50 last:border-none ${r.isUser ? 'bg-emerald-500/10' : 'bg-transparent'}`}
                       >
                         <div className="flex items-center gap-4">
-                          <span className="text-[0.625rem] font-bold w-8 text-center">
-                            {r.rank === 1 ? '🥇' : r.rank === 2 ? '🥈' : r.rank === 3 ? '🥉' : (
-                              <span className={r.rank <= 3 ? 'text-amber-500' : 'text-slate-400'}>#{r.rank}</span>
-                            )}
+                          <span className={`metric text-xs w-8 text-center ${r.rank <= 3 ? 'text-amber-500 font-semibold' : 'text-slate-400'}`}>
+                            {r.rank}
                           </span>
                           <div className="w-10 h-10 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-500 dark:text-slate-400 border border-white/10 shadow-inner">
                             <i className={`fa-solid ${r.avatar}`} />

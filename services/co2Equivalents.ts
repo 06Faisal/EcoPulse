@@ -4,7 +4,8 @@
  */
 
 export interface CO2Equivalent {
-    icon: string;       // emoji
+    /** Font Awesome class, e.g. "fa-tree" */
+    icon: string;
     label: string;
     value: string;
     detail: string;
@@ -45,14 +46,14 @@ export function getCO2Equivalents(kgCO2: number): CO2Equivalent[] {
     if (treeDays < 1) {
         const treePct = ((kgCO2 / KG_PER_TREE_PER_YEAR) * 100).toFixed(1);
         equivalents.push({
-            icon: '🌳',
+            icon: 'fa-tree',
             label: 'Tree absorption',
             value: `${treePct}%`,
             detail: `of what one tree absorbs in a year`,
         });
     } else {
         equivalents.push({
-            icon: '🌳',
+            icon: 'fa-tree',
             label: 'Trees offset',
             value: treeDays >= 365 ? `${(treeDays / 365).toFixed(1)} tree-years` : `${treeDays.toFixed(0)} tree-days`,
             detail: `of CO₂ absorbed by trees`,
@@ -62,7 +63,7 @@ export function getCO2Equivalents(kgCO2: number): CO2Equivalent[] {
     // Phone charges
     const phoneCharges = Math.round(kgCO2 / KG_PER_PHONE_CHARGE);
     equivalents.push({
-        icon: '📱',
+        icon: 'fa-mobile-screen',
         label: 'Phone charges',
         value: phoneCharges >= 1000
             ? `${(phoneCharges / 1000).toFixed(1)}k charges`
@@ -74,7 +75,7 @@ export function getCO2Equivalents(kgCO2: number): CO2Equivalent[] {
     const carKm = kgCO2 / KG_PER_CAR_KM;
     if (carKm < 1000) {
         equivalents.push({
-            icon: '🚗',
+            icon: 'fa-car-side',
             label: 'Car km',
             value: `${carKm.toFixed(1)} km`,
             detail: `driven in a petrol car`,
@@ -84,7 +85,7 @@ export function getCO2Equivalents(kgCO2: number): CO2Equivalent[] {
     // Flight % equivalent
     const flightPct = ((kgCO2 / (MUMBAI_DELHI_KM * KG_PER_FLIGHT_KM)) * 100).toFixed(1);
     equivalents.push({
-        icon: '✈️',
+        icon: 'fa-plane-up',
         label: 'MUM–DEL flight',
         value: `${flightPct}%`,
         detail: `of a Mumbai→Delhi flight`,
@@ -94,7 +95,7 @@ export function getCO2Equivalents(kgCO2: number): CO2Equivalent[] {
     const ledHours = Math.round(kgCO2 / KG_PER_LED_HOUR);
     if (ledHours < 10000) {
         equivalents.push({
-            icon: '💡',
+            icon: 'fa-lightbulb',
             label: 'LED hours',
             value: ledHours >= 1000 ? `${(ledHours / 1000).toFixed(1)}k hrs` : `${ledHours} hrs`,
             detail: `of a 9W LED bulb`,
@@ -105,7 +106,7 @@ export function getCO2Equivalents(kgCO2: number): CO2Equivalent[] {
     const kettles = Math.round(kgCO2 / KG_PER_KETTLE);
     if (kettles > 0 && kettles < 1000) {
         equivalents.push({
-            icon: '☕',
+            icon: 'fa-mug-hot',
             label: 'Kettles boiled',
             value: `${kettles}`,
             detail: `full kettle boils`,
@@ -116,15 +117,3 @@ export function getCO2Equivalents(kgCO2: number): CO2Equivalent[] {
     return equivalents.slice(0, 3);
 }
 
-/**
- * Returns a single punchy "headline" equivalent for the given kg CO₂.
- * Used in dashboard hero cards.
- */
-export function getHeadlineEquivalent(kgCO2: number): string {
-    if (kgCO2 <= 0) return '';
-    const trees = kgCO2 / KG_PER_TREE_PER_YEAR;
-    if (trees >= 0.5) return `≈ ${trees.toFixed(1)} 🌳 tree-years`;
-    const phones = Math.round(kgCO2 / KG_PER_PHONE_CHARGE);
-    if (phones > 0) return `≈ ${phones >= 1000 ? `${(phones / 1000).toFixed(1)}k` : phones} 📱 phone charges`;
-    return `≈ ${(kgCO2 / KG_PER_CAR_KM).toFixed(1)} km 🚗 car trip`;
-}

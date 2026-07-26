@@ -215,7 +215,7 @@ const Dashboard: React.FC<DashboardProps> = ({ trips, bills, electricity, insigh
                         key={i}
                         className="flex items-center gap-2 px-3 py-2 bg-slate-50 dark:bg-slate-800/60 rounded-lg"
                       >
-                        <span className="text-sm" aria-hidden="true">{eq.icon}</span>
+                        <i className={`fa-solid ${eq.icon} text-slate-400 text-xs w-4 text-center`} aria-hidden="true" />
                         <span>
                           <span className="metric block text-xs text-slate-800 dark:text-white leading-none">
                             {eq.value}
