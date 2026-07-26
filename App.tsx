@@ -863,6 +863,7 @@ function App() {
               {activeTab === 'challenges' && currentUser && (
                 <Challenges
                   userId={currentUser.id}
+                  username={currentUser.username}
                   userCO2ThisWeek={(() => {
                     const cutoff = new Date();
                     cutoff.setDate(cutoff.getDate() - 7);

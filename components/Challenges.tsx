@@ -1,8 +1,16 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Challenge, ChallengeType } from '../services/types';
+
+// There is no role system in the database, and challenges have no backend
+// table at all (they live in localStorage, per browser) - so this is a UI
+// restriction, not a real security boundary. It doesn't need to be more than
+// that: the worst a user could do by bypassing it is add an entry to their
+// own local list, visible only to themselves.
+const OWNER_USERNAME = 'faisal';
 
 interface ChallengesProps {
     userId: string;
+    username: string;
     userCO2ThisWeek: number;
 }
 
@@ -80,7 +88,9 @@ function daysLeft(endsAt: string): number {
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-const Challenges: React.FC<ChallengesProps> = ({ userId, userCO2ThisWeek }) => {
+const Challenges: React.FC<ChallengesProps> = ({ userId, username, userCO2ThisWeek }) => {
+    const isOwner = username.trim().toLowerCase() === OWNER_USERNAME;
+
     const [challenges, setChallenges] = useState<Challenge[]>(() => {
         const stored = localStorage.getItem('ecopulse_challenges');
         if (stored) return JSON.parse(stored);
@@ -108,7 +118,7 @@ const Challenges: React.FC<ChallengesProps> = ({ userId, userCO2ThisWeek }) => {
     };
 
     const handleCreate = () => {
-        if (!newTitle.trim() || !newGoal) return;
+        if (!isOwner || !newTitle.trim() || !newGoal) return;
         const newChallenge: Challenge = {
             id: `custom-${Date.now()}`,
             title: newTitle.trim(),
@@ -253,62 +263,65 @@ const Challenges: React.FC<ChallengesProps> = ({ userId, userCO2ThisWeek }) => {
                 })}
             </div>
 
-            {/* Create custom challenge */}
-            <div className="glass p-5 rounded-card border-slate-200 dark:border-white/10">
-                <button
-                    onClick={() => setShowCreate(s => !s)}
-                    className="w-full flex items-center justify-between"
-                >
-                    <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-xl bg-purple-500/10 flex items-center justify-center">
-                            <i className="fa-solid fa-plus text-purple-500 text-sm" />
+            {/* Only the owner account can add challenges; everyone else only
+                joins or leaves what's listed above. */}
+            {isOwner && (
+                <div className="glass p-5 rounded-card border-slate-200 dark:border-white/10">
+                    <button
+                        onClick={() => setShowCreate(s => !s)}
+                        className="w-full flex items-center justify-between"
+                    >
+                        <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-xl bg-purple-500/10 flex items-center justify-center">
+                                <i className="fa-solid fa-plus text-purple-500 text-sm" />
+                            </div>
+                            <span className="font-bold text-slate-700 dark:text-slate-200 text-sm">Create Custom Challenge</span>
                         </div>
-                        <span className="font-bold text-slate-700 dark:text-slate-200 text-sm">Create Custom Challenge</span>
-                    </div>
-                    <i className={`fa-solid fa-chevron-${showCreate ? 'up' : 'down'} text-slate-400 text-xs`} />
-                </button>
+                        <i className={`fa-solid fa-chevron-${showCreate ? 'up' : 'down'} text-slate-400 text-xs`} />
+                    </button>
 
-                {showCreate && (
-                    <div className="mt-4 space-y-3 animate-in fade-in duration-300">
-                        <input
-                            type="text"
-                            placeholder="Challenge name (e.g. Bike to work this week)"
-                            value={newTitle}
-                            onChange={e => setNewTitle(e.target.value)}
-                            className="w-full px-4 py-3 bg-slate-100 dark:bg-slate-800 rounded-xl text-sm font-medium text-slate-800 dark:text-white placeholder-slate-400 outline-none border-none"
-                        />
-                        <div className="grid grid-cols-2 gap-3">
-                            <div>
-                                <label className="text-[0.625rem] font-bold text-slate-400 uppercase tracking-[0.08em] mb-1 block">CO₂ Limit (kg)</label>
-                                <input
-                                    type="number"
-                                    placeholder="e.g. 5"
-                                    value={newGoal}
-                                    onChange={e => setNewGoal(e.target.value)}
-                                    className="w-full px-3 py-2.5 bg-slate-100 dark:bg-slate-800 rounded-xl text-sm font-medium text-slate-800 dark:text-white placeholder-slate-400 outline-none"
-                                />
+                    {showCreate && (
+                        <div className="mt-4 space-y-3 animate-in fade-in duration-300">
+                            <input
+                                type="text"
+                                placeholder="Challenge name (e.g. Bike to work this week)"
+                                value={newTitle}
+                                onChange={e => setNewTitle(e.target.value)}
+                                className="w-full px-4 py-3 bg-slate-100 dark:bg-slate-800 rounded-xl text-sm font-medium text-slate-800 dark:text-white placeholder-slate-400 outline-none border-none"
+                            />
+                            <div className="grid grid-cols-2 gap-3">
+                                <div>
+                                    <label className="text-[0.625rem] font-bold text-slate-400 uppercase tracking-[0.08em] mb-1 block">CO₂ Limit (kg)</label>
+                                    <input
+                                        type="number"
+                                        placeholder="e.g. 5"
+                                        value={newGoal}
+                                        onChange={e => setNewGoal(e.target.value)}
+                                        className="w-full px-3 py-2.5 bg-slate-100 dark:bg-slate-800 rounded-xl text-sm font-medium text-slate-800 dark:text-white placeholder-slate-400 outline-none"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="text-[0.625rem] font-bold text-slate-400 uppercase tracking-[0.08em] mb-1 block">Duration (days)</label>
+                                    <input
+                                        type="number"
+                                        placeholder="7"
+                                        value={newDays}
+                                        onChange={e => setNewDays(e.target.value)}
+                                        className="w-full px-3 py-2.5 bg-slate-100 dark:bg-slate-800 rounded-xl text-sm font-medium text-slate-800 dark:text-white placeholder-slate-400 outline-none"
+                                    />
+                                </div>
                             </div>
-                            <div>
-                                <label className="text-[0.625rem] font-bold text-slate-400 uppercase tracking-[0.08em] mb-1 block">Duration (days)</label>
-                                <input
-                                    type="number"
-                                    placeholder="7"
-                                    value={newDays}
-                                    onChange={e => setNewDays(e.target.value)}
-                                    className="w-full px-3 py-2.5 bg-slate-100 dark:bg-slate-800 rounded-xl text-sm font-medium text-slate-800 dark:text-white placeholder-slate-400 outline-none"
-                                />
-                            </div>
+                            <button
+                                onClick={handleCreate}
+                                disabled={!newTitle.trim() || !newGoal}
+                                className="w-full py-3 bg-purple-500 hover:bg-purple-400 disabled:opacity-40 text-white font-bold text-sm rounded-xl transition-colors"
+                            >
+                                Create Challenge
+                            </button>
                         </div>
-                        <button
-                            onClick={handleCreate}
-                            disabled={!newTitle.trim() || !newGoal}
-                            className="w-full py-3 bg-purple-500 hover:bg-purple-400 disabled:opacity-40 text-white font-bold text-sm rounded-xl transition-colors"
-                        >
-                            Create Challenge
-                        </button>
-                    </div>
-                )}
-            </div>
+                    )}
+                </div>
+            )}
         </div>
     );
 };
