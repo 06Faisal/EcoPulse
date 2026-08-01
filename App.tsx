@@ -598,8 +598,15 @@ function App() {
     setTrips(prev => [trip, ...prev]);
     setUserProfile(prev => ({ ...prev, points: prev.points + 10 }));
     if (currentUser) {
-      cloud.insertTrip(currentUser.id, trip).catch((error) => console.error('Failed to save trip:', error));
-      cloud.awardPoints(10).catch((error) => console.error('Failed to award points:', error));
+      // Award after the insert lands: the server checks the trip exists and is
+      // owned by the caller, so firing both in parallel would race and fail.
+      cloud
+        .insertTrip(currentUser.id, trip)
+        .then(() => cloud.awardPoints('trip', trip.id))
+        .then((total) => {
+          if (typeof total === 'number') setUserProfile(prev => ({ ...prev, points: total }));
+        })
+        .catch((error) => console.error('Failed to save trip:', error));
       refreshLeaderboard(currentUser.id).catch(() => undefined);
       mlBackend.syncTrip(currentUser.id, trip).catch((error) =>
         console.warn('ML backend trip sync failed:', error)
@@ -632,8 +639,13 @@ function App() {
     });
     setUserProfile(prev => ({ ...prev, points: prev.points + 20 }));
     if (currentUser) {
-      cloud.insertBill(currentUser.id, newBill).catch((error) => console.error('Failed to save bill:', error));
-      cloud.awardPoints(20).catch((error) => console.error('Failed to award points:', error));
+      cloud
+        .insertBill(currentUser.id, newBill)
+        .then(() => cloud.awardPoints('bill', newBill.id))
+        .then((total) => {
+          if (typeof total === 'number') setUserProfile(prev => ({ ...prev, points: total }));
+        })
+        .catch((error) => console.error('Failed to save bill:', error));
       refreshLeaderboard(currentUser.id).catch(() => undefined);
       mlBackend.syncBill(currentUser.id, newBill).catch((error) =>
         console.warn('ML backend bill sync failed:', error)
@@ -672,7 +684,14 @@ function App() {
           cloud
             .saveProfile(currentUser.id, { streak: nextStreak })
             .catch((error) => console.error('Failed to update streak:', error));
-          cloud.awardPoints(50).catch((error) => console.error('Failed to award points:', error));
+          // Streak awards are keyed on the UTC date, one per day per user.
+          const utcToday = new Date().toISOString().split('T')[0];
+          cloud
+            .awardPoints('streak', utcToday)
+            .then((total) => {
+              if (typeof total === 'number') setUserProfile(prev => ({ ...prev, points: total }));
+            })
+            .catch((error) => console.error('Failed to award points:', error));
           refreshLeaderboard(currentUser.id).catch(() => undefined);
         }
       }

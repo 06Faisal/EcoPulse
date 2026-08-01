@@ -73,7 +73,22 @@ class PredictIn(UserScopedIn):
 
 @app.get("/api/health")
 def health():
-    return {"status": "ok", "version": "2.0.0"}
+    """Liveness plus a booleans-only view of what is configured.
+
+    Reports whether each credential is present, never its value, so a
+    misconfigured deployment can be diagnosed without a signed-in session and
+    without exposing anything sensitive.
+    """
+    return {
+        "status": "ok",
+        "version": "2.0.0",
+        "configured": {
+            "gemini": bool(GEMINI_API_KEY),
+            "supabase": bool(SUPABASE_URL and SUPABASE_ANON_KEY),
+            "ml_api_key": bool(os.environ.get("ML_API_KEY", "").strip()),
+            "cors_origins": len(cors_origins),
+        },
+    }
 
 
 @app.post("/api/trips")

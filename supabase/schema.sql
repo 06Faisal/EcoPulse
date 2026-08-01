@@ -148,47 +148,94 @@ revoke update on public.profiles from authenticated;
 grant update (avatar_id, level, daily_goal, rank, streak, dark_mode, available_vehicles)
   on public.profiles to authenticated;
 
--- Awards go through a definer function that can only increment, only by an
--- amount the server recognises, and only for the caller's own row.
-create or replace function public.award_points(delta integer)
+-- Every award is tied to the row that earned it. The server decides the
+-- amount, verifies the row belongs to the caller, and records it here; the
+-- unique constraint makes a repeated call a no-op instead of a second payout,
+-- which is what stops the RPC being called in a loop to farm score.
+create table if not exists points_ledger (
+  id bigserial primary key,
+  user_id uuid not null references auth.users(id) on delete cascade,
+  source_type text not null check (source_type in ('trip', 'bill', 'streak')),
+  source_id text not null,
+  points integer not null,
+  awarded_at timestamptz not null default now(),
+  unique (user_id, source_type, source_id)
+);
+
+create index if not exists points_ledger_user_idx on points_ledger (user_id);
+
+alter table points_ledger enable row level security;
+
+create policy "Users can read their own points ledger"
+  on points_ledger for select
+  to authenticated
+  using (auth.uid() = user_id);
+
+-- Only the definer function below writes to the ledger.
+revoke insert, update, delete on points_ledger from authenticated, anon;
+
+create or replace function public.award_points(
+  p_source_type text,
+  p_source_id text
+)
 returns integer
 language plpgsql
 security definer
 set search_path = public
 as $$
 declare
+  uid uuid := auth.uid();
+  delta integer;
   new_total integer;
 begin
-  if auth.uid() is null then
+  if uid is null then
     raise exception 'not authenticated';
   end if;
 
-  -- The app awards 10 (trip), 20 (bill) and 50 (daily streak).
-  if delta not in (10, 20, 50) then
-    raise exception 'invalid points award: %', delta;
+  delta := case p_source_type
+             when 'trip'   then 10
+             when 'bill'   then 20
+             when 'streak' then 50
+           end;
+  if delta is null then
+    raise exception 'unknown source_type: %', p_source_type;
   end if;
 
-  update profiles
-     set points = points + delta
-   where id = auth.uid()
+  if p_source_type = 'trip' then
+    if not exists (select 1 from trips where id = p_source_id and user_id = uid) then
+      raise exception 'trip not found for this user';
+    end if;
+  elsif p_source_type = 'bill' then
+    if not exists (select 1 from bills where id = p_source_id and user_id = uid) then
+      raise exception 'bill not found for this user';
+    end if;
+  else
+    -- One streak award per calendar day, current day only, so past dates
+    -- cannot be backfilled in bulk.
+    if p_source_id <> to_char((now() at time zone 'utc')::date, 'YYYY-MM-DD') then
+      raise exception 'streak award must be for the current UTC date';
+    end if;
+  end if;
+
+  insert into points_ledger (user_id, source_type, source_id, points)
+  values (uid, p_source_type, p_source_id, delta)
+  on conflict (user_id, source_type, source_id) do nothing;
+
+  -- Replay: leave the score alone and report the current total.
+  if not found then
+    select points into new_total from profiles where id = uid;
+    return new_total;
+  end if;
+
+  update profiles set points = points + delta where id = uid
   returning points into new_total;
-
-  if new_total is null then
-    raise exception 'profile not found';
-  end if;
 
   return new_total;
 end;
 $$;
 
-revoke all on function public.award_points(integer) from public, anon;
-grant execute on function public.award_points(integer) to authenticated;
-
--- REMAINING GAP: a client can still call award_points() repeatedly to farm
--- score, since the function trusts that the action happened. Closing that
--- means deriving the award from the user's own trips/bills rows inside the
--- function, or recording awarded actions in a table with a uniqueness
--- constraint so each trip can only ever pay out once.
+revoke all on function public.award_points(text, text) from public, anon;
+grant execute on function public.award_points(text, text) to authenticated;
 
 create policy "Users can access their trips"
   on trips for all

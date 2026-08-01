@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 EcoPulse AI - Complete ML Evaluation Pipeline
-Runs: Data Generation → Training → Evaluation → Report Generation
+Runs: Data generation -> training -> evaluation -> report
 """
 
 import sys
@@ -17,22 +17,20 @@ def run_step(description, command):
     result = subprocess.run(command, shell=True)
     
     if result.returncode != 0:
-        print(f"\n❌ Error in step: {description}")
+        print(f"\n[FAIL] Error in step: {description}")
         return False
     
-    print(f"\n✅ Completed: {description}")
+    print(f"\n[OK] Completed: {description}")
     return True
 
 
 def main():
-    print("""
-╔═══════════════════════════════════════════════════════════════╗
-║                                                               ║
-║           EcoPulse AI - ML Evaluation Pipeline               ║
-║                                                               ║
-╚═══════════════════════════════════════════════════════════════╝
-""")
-    
+    # Plain ASCII: box-drawing and emoji raise UnicodeEncodeError on a Windows
+    # console, which defaults to cp1252 and cannot encode them.
+    print("\n" + "=" * 60)
+    print("EcoPulse - ML Evaluation Pipeline")
+    print("=" * 60)
+
     # Step 1: Generate synthetic test data
     if not run_step(
         "Generate Synthetic Test Data",
@@ -47,18 +45,13 @@ def main():
     ):
         return
     
-    print("\n" + "=" * 80)
-    print("🎉 PIPELINE COMPLETE!")
-    print("=" * 80)
-    print("\nResults available in:")
-    print("  📁 evaluation_results/")
-    print("     ├── 📄 evaluation_report.md")
-    print("     ├── 📊 ml_evaluation_summary.png")
-    print("     ├── 📈 user_*_timeseries.png")
-    print("     ├── 📋 aggregated_metrics.json")
-    print("     └── 📋 individual_results.json")
-    print("\nView the report:")
-    print(f"  cat evaluation_results/evaluation_report.md")
+    print("\n" + "=" * 60)
+    print("Pipeline complete. Results in evaluation_results/:")
+    print("  evaluation_report.md      summary write-up")
+    print("  aggregated_metrics.json   metrics across all users")
+    print("  individual_results.json   per-user metrics")
+    print("  ml_evaluation_summary.png, user_*_timeseries.png")
+    print("=" * 60)
 
 
 if __name__ == "__main__":

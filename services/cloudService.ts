@@ -196,17 +196,26 @@ export const cloud = {
   },
 
   /**
-   * Award points for a completed action.
+   * Award points for the row that earned them.
    *
-   * The client cannot write `points` directly: it could otherwise PATCH its own
-   * profile row and set any score, since RLS authorises the row rather than the
-   * value. This calls a SECURITY DEFINER function that only ever increments,
-   * only by an amount the server recognises, and only for the caller's own row.
+   * The client cannot write `points` directly (the authenticated role has no
+   * UPDATE on that column) and cannot choose the amount either: the server
+   * derives it from `sourceType`, verifies the referenced trip or bill belongs
+   * to the caller, and records the award in points_ledger. A unique constraint
+   * there makes a repeated call a no-op, so the same trip can never pay twice.
    *
+   * @param sourceType what earned the points.
+   * @param sourceId   trip id, bill id, or the current UTC date for a streak.
    * @returns the new total, or null if the award was rejected.
    */
-  async awardPoints(delta: 10 | 20 | 50): Promise<number | null> {
-    const { data, error } = await supabase.rpc('award_points', { delta });
+  async awardPoints(
+    sourceType: 'trip' | 'bill' | 'streak',
+    sourceId: string
+  ): Promise<number | null> {
+    const { data, error } = await supabase.rpc('award_points', {
+      p_source_type: sourceType,
+      p_source_id: sourceId
+    });
     if (error) {
       console.error('[awardPoints]', formatSupabaseError(error));
       return null;
