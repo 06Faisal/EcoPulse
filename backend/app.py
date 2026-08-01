@@ -85,10 +85,46 @@ def health():
         "configured": {
             "gemini": bool(GEMINI_API_KEY),
             "supabase": bool(SUPABASE_URL and SUPABASE_ANON_KEY),
+            # Without the service role this process reads zero rows through RLS,
+            # so every ML route degrades to "not enough data".
+            "supabase_service_role": bool(
+                os.environ.get("SUPABASE_SERVICE_ROLE_KEY", "").strip()
+            ),
             "ml_api_key": bool(os.environ.get("ML_API_KEY", "").strip()),
             "cors_origins": len(cors_origins),
         },
     }
+
+
+@app.get("/api/ai/selftest")
+async def ai_selftest(api_key: str = Depends(verify_api_key)):
+    """Confirm the Gemini credential actually works.
+
+    The proxy requires an end-user session, which makes the AI path awkward to
+    verify from outside the app. This performs one minimal generation using the
+    server-side key and reports only whether it succeeded, so a deployment can
+    be checked without signing in. Gated on the service API key.
+    """
+    if not GEMINI_API_KEY:
+        raise HTTPException(status_code=503, detail="GEMINI_API_KEY is not set")
+
+    async with httpx.AsyncClient(timeout=30) as client:
+        resp = await client.post(
+            f"{GEMINI_UPSTREAM}/v1beta/models/gemini-2.0-flash:generateContent",
+            headers={"Content-Type": "application/json", "x-goog-api-key": GEMINI_API_KEY},
+            json={"contents": [{"parts": [{"text": "Reply with the single word: ok"}]}]},
+        )
+
+    if resp.status_code != 200:
+        # Surface the upstream reason (invalid key, quota, model access) but not
+        # the key itself.
+        return {
+            "ok": False,
+            "upstream_status": resp.status_code,
+            "upstream_error": resp.json().get("error", {}).get("message", "")[:200],
+        }
+
+    return {"ok": True, "model": "gemini-2.0-flash"}
 
 
 @app.post("/api/trips")

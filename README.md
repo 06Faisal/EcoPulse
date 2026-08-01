@@ -193,9 +193,22 @@ Environment variables:
 | `CORS_ORIGINS` | comma-separated frontend origins |
 | `VITE_SUPABASE_URL` | used to verify access tokens on the AI proxy |
 | `VITE_SUPABASE_ANON_KEY` | same |
+| `SUPABASE_SERVICE_ROLE_KEY` | **required** — see below |
 
-`GET /api/health` reports which of these are configured (booleans only, never
-values) — useful for diagnosing a deployment without signing in.
+The service role key is not optional. This service reads rows on a user's
+behalf, and the RLS policies grant access `to authenticated`; with the anon key
+every query returns empty and training, prediction and clustering all report
+"not enough data" regardless of how much the user logged. Copy it from Supabase
+→ Project Settings → API. It bypasses RLS, so it must stay server-side and must
+never be given a `VITE_` prefix.
+
+**Diagnostics**
+
+- `GET /api/health` — reports which credentials are configured (booleans only,
+  never values), so a deployment can be checked without signing in.
+- `GET /api/ai/selftest` — requires the `x-api-key` header; performs one minimal
+  Gemini generation and reports whether the key actually works, since the proxy
+  itself needs an end-user session.
 
 ---
 

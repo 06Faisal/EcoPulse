@@ -7,13 +7,37 @@ from supabase import create_client, Client
 env_path = Path(__file__).resolve().parent.parent.parent / '.env.local'
 load_dotenv(dotenv_path=env_path)
 
-SUPABASE_URL = os.environ.get("VITE_SUPABASE_URL", "")
-SUPABASE_KEY = os.environ.get("VITE_SUPABASE_ANON_KEY", "")
+import logging
 
-# Initialize Supabase client
-# Fallback to dummy client if keys are missing (should not happen in proper deploy)
+logger = logging.getLogger("ecopulse.storage")
+
+SUPABASE_URL = os.environ.get("VITE_SUPABASE_URL", "")
+
+# This service reads other users' rows on their behalf (training, prediction,
+# cohort clustering), so it must authenticate as the service role.
+#
+# The anon key was used here previously, which silently returned nothing: the
+# RLS policies on trips/bills/profiles are granted `to authenticated`, and the
+# anon role matches none of them. Every query came back empty, so training and
+# clustering always reported "not enough data" no matter how much the user had
+# logged.
+#
+# The service role bypasses RLS, which means the user_id filter in each query
+# below is the only thing scoping a request to one user. Those ids are
+# validated in security.py before reaching here, and every route requires the
+# service API key. This key must never reach the frontend.
+SERVICE_KEY = os.environ.get("SUPABASE_SERVICE_ROLE_KEY", "").strip()
+ANON_KEY = os.environ.get("VITE_SUPABASE_ANON_KEY", "").strip()
+SUPABASE_KEY = SERVICE_KEY or ANON_KEY
+
 if SUPABASE_URL and SUPABASE_KEY:
     supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
+    if not SERVICE_KEY:
+        logger.warning(
+            "SUPABASE_SERVICE_ROLE_KEY is not set; falling back to the anon key. "
+            "Row-level security will hide every row from this service, so "
+            "training, prediction and clustering will all report no data."
+        )
 else:
     supabase = None
 
